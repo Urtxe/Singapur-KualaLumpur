@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 const base = 'http://127.0.0.1:4173/asia-trip/';
 
 test('keeps the travel guide, city maps and all three Google Maps modes', async ({ page }) => {
+  page.setDefaultTimeout(8000);
   const errors: string[] = [];
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto(base);
@@ -17,13 +18,14 @@ test('keeps the travel guide, city maps and all three Google Maps modes', async 
   await page.getByRole('button',{name:/Cómo llegar a/}).first().click();
   const link = page.getByRole('link',{name:'Abrir en Google Maps'});
   await expect(link).toHaveAttribute('href',/travelmode=walking/);
-  await page.getByLabel('Modo').selectOption('transit');
+  await page.locator('#direction-mode').selectOption('transit');
   await expect(link).toHaveAttribute('href',/travelmode=transit/);
-  await page.getByLabel('Modo').selectOption('driving');
+  await page.locator('#direction-mode').selectOption('driving');
   await expect(link).toHaveAttribute('href',/travelmode=driving/);
   await expect(link).toHaveAttribute('target','_blank');
   await page.getByRole('button',{name:'Cerrar',exact:true}).click();
-  await page.getByLabel('Ciudad del mapa').selectOption('kl');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.locator('[data-action="map-city"]').selectOption('kl');
   await page.getByLabel('Puntos del mapa',{exact:true}).selectOption('medical');
   await expect(page.locator('.map-pin').first()).toBeVisible();
   expect(errors).toEqual([]);
@@ -166,7 +168,13 @@ test('works offline under the subpath and keeps a keyboard path at 375 px', asyn
     for (const route of ['inicio','agenda','lugares','gastos','compartir','viaje']) {
       await page.goto(`${base}#${route}`);
       await expect(page.locator('main h1').first()).toBeVisible();
-      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true);
+      const dimensions = await page.evaluate(()=>{
+        const width = document.documentElement.clientWidth;
+        const scroll = document.documentElement.scrollWidth;
+        const offenders = scroll > width ? Array.from(document.querySelectorAll('main *')).filter(el=>el.getBoundingClientRect().right > width+1 && !el.closest('.pl-day-pills,.map-plot')).slice(0,8).map(el=>[el.tagName,el.className]) : [];
+        return { width, scroll, offenders };
+      });
+      expect(dimensions.scroll, `${route} at ${dimensions.width}px: ${JSON.stringify(dimensions.offenders)}`).toBeLessThanOrEqual(dimensions.width);
     }
     await context.setOffline(true);
     await page.goto(`${base}#agenda`);

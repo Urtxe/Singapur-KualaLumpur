@@ -235,8 +235,7 @@ function bindPlanner(element: HTMLElement, app: AppContext, selectedMode?: Plann
   let showArchived = readSession(`asia-trip-planner-archive:${dateKey}`) === 'true'
   let selectedZone = readSession(`asia-trip-planner-zone:${dateKey}`)
   let dragId = ''
-  let touchId = ''
-  let startY = 0
+  let pointer: { id:number; activity:string; startY:number; y:number } | null = null
   const render = () => {
     const state = app.getState()
     const date = app.selectedDate()
@@ -313,8 +312,26 @@ function bindPlanner(element: HTMLElement, app: AppContext, selectedMode?: Plann
   element.addEventListener('dragstart', event => { const card = (event.target as Element).closest<HTMLElement>('[data-item]'); if (card) { dragId = card.dataset.item ?? ''; event.dataTransfer?.setData('text/plain', dragId); if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move' } })
   element.addEventListener('dragover', event => { if ((event.target as Element).closest('[data-item]')) event.preventDefault() })
   element.addEventListener('drop', event => { const card = (event.target as Element).closest<HTMLElement>('[data-item]'); const target = card?.dataset.item ?? ''; const moving = dragId || event.dataTransfer?.getData('text/plain') || ''; if (moving && target) { event.preventDefault(); reorder(app,moving,target); dragId = '' } })
-  element.addEventListener('pointerdown', event => { const grip = (event.target as Element).closest<HTMLElement>('[data-pl-action="grab"]'); if (!grip) return; touchId = grip.dataset.id ?? ''; startY = event.clientY; grip.setPointerCapture?.(event.pointerId) })
-  element.addEventListener('pointerup', event => { if (!touchId || Math.abs(event.clientY - startY) < 18) { touchId = ''; return } const cards = [...element.querySelectorAll<HTMLElement>('.pl-activity[data-item]')]; const target = cards.find(card => { const rect = card.getBoundingClientRect(); return event.clientY >= rect.top && event.clientY <= rect.bottom })?.dataset.item ?? ''; if (target) reorder(app,touchId,target); touchId = '' })
+  element.addEventListener('pointerdown', event => {
+    const grip = (event.target as Element).closest<HTMLElement>('[data-pl-action="grab"]')
+    if (!grip?.dataset.id || event.button !== 0 || pointer) return
+    pointer = { id:event.pointerId, activity:grip.dataset.id, startY:event.clientY, y:event.clientY }
+    grip.setPointerCapture(event.pointerId)
+  })
+  element.addEventListener('pointermove', event => { if (pointer?.id === event.pointerId) pointer.y = event.clientY })
+  element.addEventListener('pointercancel', event => { if (pointer?.id === event.pointerId) pointer = null })
+  element.addEventListener('pointerup', event => {
+    if (pointer?.id !== event.pointerId) return
+    const drag = pointer
+    pointer = null
+    const y = Math.abs(event.clientY - drag.startY) >= 18 ? event.clientY : drag.y
+    if (Math.abs(y - drag.startY) < 18) return
+    const target = Array.from(element.querySelectorAll<HTMLElement>('.pl-activity[data-item]')).find(card => {
+      const rect = card.getBoundingClientRect()
+      return y >= rect.top && y <= rect.bottom
+    })?.dataset.item
+    if (target) reorder(app,drag.activity,target)
+  })
 }
 
 export function mountPlanner(element: HTMLElement, app: AppContext) { bindPlanner(element, app) }

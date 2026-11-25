@@ -42,15 +42,23 @@ test.describe('Planificador y HOY', () => {
     const first = page.locator(`.pl-activity[data-item="${firstId}"]`)
     const second = page.locator(`.pl-activity[data-item="${secondId}"]`)
     await expect(first).toBeVisible()
+    await first.evaluate(el => el.scrollIntoView({block:'start',behavior:'instant'}))
     const grip = first.locator('[data-pl-action="grab"]')
+    await expect(grip).toBeInViewport()
+    await expect(second).toBeInViewport()
     const gripBox = await grip.boundingBox()
     const secondBox = await second.boundingBox()
     if (!gripBox || !secondBox) throw new Error('No se pudo localizar la fila para reordenarla')
     const start = { x: gripBox.x + gripBox.width / 2, y: gripBox.y + gripBox.height / 2 }
-    const end = { x: secondBox.x + Math.min(40, secondBox.width / 3), y: secondBox.y + secondBox.height / 2 }
+    const end = { x: secondBox.x + Math.min(40, secondBox.width / 3), y: secondBox.y + Math.min(48,secondBox.height / 2) }
+    expect(await page.evaluate(({x,y})=>!!document.elementFromPoint(x,y)?.closest('[data-pl-action="grab"]'),start)).toBe(true)
+    const nextFrame = () => page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))))
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...start, id: 1 }] })
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: start.x, y: start.y + (end.y - start.y) / 3, id: 1 }] })
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: end.x, y: end.y, id: 1 }] })
+    await nextFrame()
+    for (let step=1;step<=5;step++) {
+      await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:start.x + (end.x-start.x)*step/5,y:start.y + (end.y-start.y)*step/5,id:1}]})
+      await nextFrame()
+    }
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
     await expect.poll(async () => page.locator('.pl-timeline .pl-activity').first().getAttribute('data-item')).toBe(secondId)
 
