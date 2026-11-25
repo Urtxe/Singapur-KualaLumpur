@@ -1,0 +1,27 @@
+{
+  "name": "asia-trip",
+  "version": "1.0.0",
+  "description": "Agenda y diario offline para un viaje familiar a Singapur y Kuala Lumpur.",
+  "private": true,
+  "scripts": {
+    "test": "node --import tsx --test tests/state.test.ts",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "test:e2e": "playwright test",
+    "serve:subpath": "node scripts/serve-subpath.mjs"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.10",
+    "eslint": "^10.15.0",
+    "globals": "^17.14.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.74.0",
+    "vite": "^8.3.8"
+  }
+}
