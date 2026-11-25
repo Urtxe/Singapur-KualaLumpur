@@ -14,13 +14,19 @@ test('private files and insurance details restore locally and cache checks work 
 
   await page.getByLabel('Aseguradora').fill('Seguro de prueba');
   await page.getByLabel('Referencia de póliza').fill('POLIZA-123');
+  const upload = page.getByLabel('Guardar archivo desde el teléfono');
+  await expect(upload).toBeEnabled();
+  const uploadControl = await upload.elementHandle();
   await page.getByRole('button', { name: 'Guardar datos privados' }).click();
-  await expect(page.locator('[name="policyReference"]')).toHaveValue('POLIZA-123');
-
-  await page.getByLabel('Guardar archivo desde el teléfono').setInputFiles({
+  await upload.setInputFiles({
     name: 'entrada.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\nlocal receipt\n%%EOF'),
   });
   await expect(page.getByText('entrada.pdf')).toBeVisible();
+  expect(await uploadControl.evaluate(input => input.isConnected)).toBe(true);
+  await page.context().setOffline(true);
+  await page.reload();
+  await expect(page.getByText('entrada.pdf')).toBeVisible();
+  await expect(page.getByLabel('Referencia de póliza')).toHaveValue('POLIZA-123');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: 'Descargar' }).click(),

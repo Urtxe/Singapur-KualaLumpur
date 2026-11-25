@@ -22,7 +22,7 @@ npm run test:e2e -- --workers=3
 | `planner.test.ts` y `planner.spec.ts` | Advertencias de solapamientos y ritmo, distancia directa, edición del plan alternativo, reordenación táctil mediante CDP, cronología, semana y consulta de fechas en HOY. |
 | `finance.test.ts` y `finance.spec.ts` | Céntimos, equivalentes históricos, presupuesto, edición, compras prepagadas, comisiones y retiradas que no se cargan como gasto. |
 | `trip.spec.ts` | Mapa, navegación externa, agenda original y personalizada, intercambio entre dos contextos de navegador, archivos inválidos, copias completas, conservación de notas tras cerrar y reabrir la página, CSV y teclado sin desbordamiento horizontal a 375 px. |
-| `offline.spec.ts` | Preparación del caché, PDF y datos de seguro locales, copia privada con referencias estables, restauración en otro contexto y actualización del worker con conservación de gastos, recibos y seguro. |
+| `offline.spec.ts` | Preparación de la caché, selector de archivos estable al guardar el seguro, recarga y descarga de un PDF con la red desactivada, copia privada con referencias estables, restauración en otro contexto y actualización del worker con conservación de gastos, recibos y seguro. |
 | `connection.spec.ts` | Primera carga con caché vacía, latencia de 150 ms y 1 Mbps simulado, precarga completada y ausencia de peticiones externas en el arranque. |
 
 Se ejecuta Chromium de escritorio, WebKit con perfil iPhone y Chromium con perfil Android. Las dos comprobaciones dependientes de CDP se ejecutan en Chromium. La red apagada se emula en Playwright. No se probaron el menú nativo de instalación, el selector físico de archivos ni la conectividad de las SIM en teléfonos físicos.

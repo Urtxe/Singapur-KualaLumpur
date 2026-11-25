@@ -20,37 +20,57 @@ export function mountOffline(element: HTMLElement, app: AppContext): void {
   let persistent = 'No disponible';
   let updatedAt = lastServiceWorkerUpdate();
   let backupAt: string | null = null;
-  let privateCard: PrivateCard = { insurer: '', assistancePhone: '', policyReference: '', emergencyContact: '', note: '' };
 
+  element.innerHTML = `<section class="offline-view">
+    <header class="page-heading"><div><p class="eyebrow">ASIA TRIP · USO SIN CONEXIÓN</p><h1>Offline y documentos</h1><p>Diagnóstico de recursos y archivos privados que solo se guardan en este navegador.</p></div></header>
+    <section class="card offline-diagnostics" aria-labelledby="offline-diagnostics-heading"></section>
+    <section class="card private-vault" aria-labelledby="vault-heading"><div class="section-line"><div><h2 id="vault-heading">Reservas, documentos y seguro</h2><p>PDF e imágenes se guardan localmente en IndexedDB. No se suben a ningún servidor ni se incluyen en la copia JSON normal.</p></div><span class="tag">Privado en este dispositivo</span></div>
+      <section class="private-card" aria-labelledby="private-card-heading"><h3 id="private-card-heading">Datos privados del seguro y reservas</h3><p class="muted">Solo se guardan en este dispositivo y no se comparten con los datos del viaje. El almacenamiento local no está cifrado; guarda solo la información que necesites tener a mano.</p><form data-private-card><div class="form-grid"><label class="field"><span>Aseguradora</span><input name="insurer" maxlength="200"></label><label class="field"><span>Teléfono de asistencia</span><input name="assistancePhone" maxlength="100" inputmode="tel"></label><label class="field"><span>Referencia de póliza</span><input name="policyReference" maxlength="200"></label><label class="field"><span>Teléfono de contacto de emergencia</span><input name="emergencyContact" maxlength="100" inputmode="tel"></label></div><label class="field"><span>Nota útil (sin datos médicos)</span><textarea name="note" maxlength="1000"></textarea></label><button class="button" type="submit" disabled>Guardar datos privados</button></form></section>
+      <label class="field"><span>Guardar archivo desde el teléfono</span><input type="file" accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp" data-vault-action="upload" disabled><small>PDF, JPEG, PNG o WebP. Hasta 25 MB por PDF y 15 MB por imagen. Las imágenes se reducen para ahorrar espacio.</small></label>
+      <div data-vault-files></div>
+      <div class="actions"><button class="button" type="button" data-vault-action="export-vault" disabled>Exportar copia de la bóveda</button><label class="button file-button">Importar copia de la bóveda<input class="sr-only" type="file" accept="application/json,.json" data-vault-action="import-vault" disabled></label></div>
+      <p class="muted">Una copia de la bóveda incluye los archivos y estos datos privados en un JSON aparte, sin cifrado. Guárdala en una ubicación privada y segura. El sistema puede eliminar datos locales; conserva una copia en otro lugar. Exportar una copia no borra los archivos guardados.</p>
+    </section>
+    <p class="storage-warning" role="status" hidden></p>
+  </section>`;
+  const diagnostics = element.querySelector<HTMLElement>('.offline-diagnostics')!;
+  const vaultFiles = element.querySelector<HTMLElement>('[data-vault-files]')!;
+  const privateForm = element.querySelector<HTMLFormElement>('[data-private-card]')!;
+  const statusMessage = element.querySelector<HTMLElement>('.offline-view > [role="status"]')!;
+
+  function showStatus() {
+    statusMessage.textContent = status;
+    statusMessage.hidden = !status;
+  }
+
+  function setPrivateDefaults(card: PrivateCard) {
+    for (const [name, value] of Object.entries(card)) {
+      const field = privateForm.elements.namedItem(name);
+      if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) field.defaultValue = value;
+    }
+  }
+
+  // Refresh diagnostics independently so an open file picker keeps its input.
   function render() {
     const used = files.reduce((sum, item) => sum + item.size, 0);
     const currentState = app.getState();
-    const rows = files.length ? `<ul class="vault-list">${files.map(file => {
+    vaultFiles.innerHTML = files.length ? `<ul class="vault-list">${files.map(file => {
       const linked = currentState.notes.some(note => note.photoId === file.id) || currentState.expenses.some(expense => expense.receiptId === file.id);
       return `<li><div class="vault-file"><strong>${e(file.name)}</strong><span>${e(labels[file.purpose])} · ${e(file.type.toUpperCase().replace('APPLICATION/', ''))} · ${formatBytes(file.size)}</span></div><div class="actions"><button class="button compact" type="button" data-vault-action="open" data-id="${e(file.id)}">Descargar</button><button class="button compact danger" type="button" data-vault-action="delete" data-id="${e(file.id)}"${linked ? ' disabled title="Este archivo está vinculado a un recuerdo o gasto."' : ''}>Eliminar</button></div></li>`;
     }).join('')}</ul>` : '<div class="vault-empty">Todavía no hay archivos guardados en este dispositivo.</div>';
-    element.innerHTML = `<section class="offline-view">
-      <header class="page-heading"><div><p class="eyebrow">ASIA TRIP · USO SIN CONEXIÓN</p><h1>Offline y documentos</h1><p>Diagnóstico de recursos y archivos privados que solo se guardan en este navegador.</p></div></header>
-      <section class="card offline-diagnostics" aria-labelledby="offline-diagnostics-heading"><div class="section-line"><h2 id="offline-diagnostics-heading">Estado del dispositivo</h2><button class="button compact" type="button" data-vault-action="refresh">Comprobar</button></div>
+    diagnostics.innerHTML = `<div class="section-line"><h2 id="offline-diagnostics-heading">Estado del dispositivo</h2><button class="button compact" type="button" data-vault-action="refresh">Comprobar</button></div>
         <dl class="offline-facts"><div><dt>Conexión</dt><dd>${navigator.onLine ? 'Con conexión' : 'Sin conexión'}</dd></div><div><dt>Service worker</dt><dd>${'serviceWorker' in navigator ? (navigator.serviceWorker.controller ? 'Controlando esta página' : 'Instalado o pendiente de activar') : 'No disponible en este navegador'}</dd></div><div><dt>Versión instalada</dt><dd>${e(swVersion)}</dd></div><div><dt>Recursos precargados</dt><dd>${e(cacheState)}</dd></div><div><dt>Última actualización</dt><dd>${e(dateTime(updatedAt))}</dd></div><div><dt>Última copia JSON</dt><dd>${e(dateTime(backupAt))}</dd></div><div><dt>Almacenamiento persistente</dt><dd>${e(persistent)}</dd></div><div><dt>Archivos locales</dt><dd>${files.length} · ${formatBytes(used)} de 100 MB</dd></div></dl>
         <div class="actions"><button class="button primary" type="button" data-vault-action="prepare"${busy ? ' disabled' : ''}>${busy ? 'Comprobando…' : 'Preparar viaje sin conexión'}</button><button class="button" type="button" data-vault-action="persist">Solicitar almacenamiento persistente</button></div>
-        <p class="muted">La comprobación confirma que los recursos de la aplicación estén en caché; no comprueba internet de terceros ni contenido externo. El sistema operativo puede borrar la caché o los archivos locales. Guarda copias de seguridad fuera del teléfono.</p>
-      </section>
-      <section class="card private-vault" aria-labelledby="vault-heading"><div class="section-line"><div><h2 id="vault-heading">Reservas, documentos y seguro</h2><p>PDF e imágenes se guardan localmente en IndexedDB. No se suben a ningún servidor ni se incluyen en la copia JSON normal.</p></div><span class="tag">Privado en este dispositivo</span></div>
-        <section class="private-card" aria-labelledby="private-card-heading"><h3 id="private-card-heading">Datos privados del seguro y reservas</h3><p class="muted">Solo se guardan en este dispositivo y no se comparten con los datos del viaje. El almacenamiento local no está cifrado; guarda solo la información que necesites tener a mano.</p><form data-private-card><div class="form-grid"><label class="field"><span>Aseguradora</span><input name="insurer" maxlength="200" value="${e(privateCard.insurer)}"></label><label class="field"><span>Teléfono de asistencia</span><input name="assistancePhone" maxlength="100" inputmode="tel" value="${e(privateCard.assistancePhone)}"></label><label class="field"><span>Referencia de póliza</span><input name="policyReference" maxlength="200" value="${e(privateCard.policyReference)}"></label><label class="field"><span>Teléfono de contacto de emergencia</span><input name="emergencyContact" maxlength="100" inputmode="tel" value="${e(privateCard.emergencyContact)}"></label></div><label class="field"><span>Nota útil (sin datos médicos)</span><textarea name="note" maxlength="1000">${e(privateCard.note)}</textarea></label><button class="button" type="submit">Guardar datos privados</button></form></section>
-        <label class="field"><span>Guardar archivo desde el teléfono</span><input type="file" accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp" data-vault-action="upload"${ready ? '' : ' disabled'}><small>PDF, JPEG, PNG o WebP. Hasta 25 MB por PDF y 15 MB por imagen. Las imágenes se reducen para ahorrar espacio.</small></label>
-        ${rows}
-        <div class="actions"><button class="button" type="button" data-vault-action="export-vault"${ready ? '' : ' disabled'}>Exportar copia de la bóveda</button><label class="button file-button">Importar copia de la bóveda<input class="sr-only" type="file" accept="application/json,.json" data-vault-action="import-vault"${ready ? '' : ' disabled'}></label></div>
-        <p class="muted">Una copia de la bóveda incluye los archivos y estos datos privados en un JSON aparte, sin cifrado. Guárdala en una ubicación privada y segura. El sistema puede eliminar datos locales; conserva una copia en otro lugar. Exportar una copia no borra los archivos guardados.</p>
-      </section>
-      ${status ? `<p class="storage-warning" role="status">${e(status)}</p>` : ''}
-    </section>`;
+        <p class="muted">La comprobación confirma que los recursos de la aplicación estén en caché; no comprueba internet de terceros ni contenido externo. El sistema operativo puede borrar la caché o los archivos locales. Guarda copias de seguridad fuera del teléfono.</p>`;
+    showStatus();
   }
 
   async function refresh() {
     try {
       try { backupAt = localStorage.getItem(backupKey); } catch { backupAt = null; }
-      [files, privateCard] = await Promise.all([listAttachments(), getPrivateCard()]);
+      const [attachments, privateCard] = await Promise.all([listAttachments(), getPrivateCard()]);
+      files = attachments;
+      setPrivateDefaults(privateCard);
       swVersion = await serviceWorkerVersion() ?? 'No disponible';
       const [cache, usage, persistence] = await Promise.all([
         checkOfflineCache().catch(() => null),
@@ -62,7 +82,10 @@ export function mountOffline(element: HTMLElement, app: AppContext): void {
       if (usage.quota && usage.quota < usage.used) cacheState = 'Almacenamiento limitado';
       updatedAt = lastServiceWorkerUpdate();
     } catch (error) { status = errorText(error, 'No se pudo consultar el almacenamiento local.'); }
-    ready = true;
+    if (!ready) {
+      ready = true;
+      element.querySelectorAll<HTMLInputElement | HTMLButtonElement>('[data-vault-action="upload"], [data-vault-action="import-vault"], [data-vault-action="export-vault"], [data-private-card] button[type="submit"]').forEach(control => { control.disabled = false; });
+    }
     render();
   }
 
@@ -94,7 +117,10 @@ export function mountOffline(element: HTMLElement, app: AppContext): void {
           status = 'Archivo guardado solo en este dispositivo.';
         } else if (action === 'import-vault') {
           const result = await importVaultBackup(file);
-          privateCard = await getPrivateCard();
+          if (result.privateCardImported) {
+            setPrivateDefaults(await getPrivateCard());
+            privateForm.reset();
+          }
           status = `Copia privada importada: ${result.imported} archivo(s) nuevo(s), ${result.skipped} duplicado(s) omitido(s)${result.renamed ? ` y ${result.renamed} con ID reasignado por conflicto` : ''}.${result.privateCardImported ? ' Se restauraron los datos privados.' : result.privateCardImported === false ? ' Se conservaron los datos privados locales.' : ''}`;
         }
       } catch (error) { status = errorText(error, 'No se pudo guardar el archivo.'); }
@@ -116,12 +142,12 @@ export function mountOffline(element: HTMLElement, app: AppContext): void {
       note: String(data.get('note') ?? '').trim(),
     };
     void savePrivateCard(value).then(() => {
-      privateCard = value;
+      setPrivateDefaults(value);
       status = 'Datos privados guardados en este dispositivo.';
-      render();
+      showStatus();
     }).catch(error => {
       status = errorText(error, 'No se pudieron guardar los datos privados.');
-      render();
+      showStatus();
     });
   });
 
