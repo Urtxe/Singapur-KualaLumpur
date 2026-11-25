@@ -144,3 +144,7 @@ Consulta editorial del 25 de noviembre de 2026. Las fichas distinguen la informa
 - **Formulario de entrada MDAC**. [Referencia](https://imigresen-online.imi.gov.my/mdac/main).
 - **Hotel Mi Rochor**. [Referencia](https://www.wwhotels.com/hotel-mi/hotel-mi-rochor/).
 - **Star Residence KLCC**. [Referencia](https://www.google.com/maps/search/?api=1&query=Star+Residences+Jalan+Yap+Kwan+Seng+Kuala+Lumpur).
+
+## Tipografía
+
+- Manrope se sirve localmente. La licencia SIL Open Font License 1.1 está incluida en `public/manrope-OFL.txt`. [Proyecto Manrope](https://github.com/googlefonts/manrope).

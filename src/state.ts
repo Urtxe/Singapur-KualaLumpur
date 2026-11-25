@@ -1,5 +1,5 @@
 import { baseActivities } from './data';
-import type { Activity, Budget, CashMovement, Currency, Expense, Note, Place, RecordRevision, State } from './types';
+import type { Activity, Budget, CashMovement, Currency, DayPreference, Expense, Note, Place, RecordRevision, State } from './types';
 
 export const STORAGE_KEY = 'asia-trip-state-v1';
 export const MAX_BACKUP_BYTES = 1_000_000;
@@ -108,11 +108,12 @@ function parseExpense(value: unknown): Expense {
   const people = value.people === undefined ? undefined : finite(value.people) && value.people >= 1 && value.people <= 100 ? value.people : fail('expense people is invalid');
   const rate = value.rate === undefined ? undefined : value.rate === null || finite(value.rate) && value.rate > 0 && value.rate <= 1_000_000 ? value.rate : fail('expense rate is invalid');
   const eurMinor = value.eurMinor === undefined ? undefined : value.eurMinor === null || finite(value.eurMinor) && Math.round(value.eurMinor) === value.eurMinor && Math.abs(value.eurMinor) <= MAX_MINOR ? value.eurMinor : fail('expense eurMinor is invalid');
+  const bankEurMinor = value.bankEurMinor === undefined ? undefined : value.bankEurMinor === null || finite(value.bankEurMinor) && Math.round(value.bankEurMinor) === value.bankEurMinor && value.bankEurMinor >= 0 && value.bankEurMinor <= MAX_MINOR ? value.bankEurMinor : fail('expense bank EUR amount is invalid');
   const time = value.time === undefined ? undefined : typeof value.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value.time) ? value.time : fail('expense time is invalid');
   const activityId = value.activityId === undefined ? undefined : id(value.activityId) ? value.activityId : fail('expense activity id is invalid');
   const receiptId = value.receiptId === undefined ? undefined : id(value.receiptId) ? value.receiptId : fail('expense receipt id is invalid');
   if (value.payer !== undefined && !str(value.payer,100) || value.notes !== undefined && !str(value.notes,5000)) fail('expense text is invalid');
-  return { id: expenseId, date, title, amount, currency, category, amountMinor, ...(time === undefined ? {} : {time}), ...(city === undefined ? {} : {city}), ...(value.payer === undefined ? {} : {payer:value.payer as string}), ...(method === undefined ? {} : {method}), ...(people === undefined ? {} : {people}), ...(rate === undefined ? {} : {rate}), ...(eurMinor === undefined ? {} : {eurMinor}), ...(activityId === undefined ? {} : {activityId}), ...(receiptId === undefined ? {} : {receiptId}), ...(value.notes === undefined ? {} : {notes:value.notes as string}), ...(phase === undefined ? {} : {phase}) };
+  return { id: expenseId, date, title, amount, currency, category, amountMinor, ...(time === undefined ? {} : {time}), ...(city === undefined ? {} : {city}), ...(value.payer === undefined ? {} : {payer:value.payer as string}), ...(method === undefined ? {} : {method}), ...(people === undefined ? {} : {people}), ...(rate === undefined ? {} : {rate}), ...(eurMinor === undefined ? {} : {eurMinor}), ...(bankEurMinor === undefined ? {} : {bankEurMinor}), ...(activityId === undefined ? {} : {activityId}), ...(receiptId === undefined ? {} : {receiptId}), ...(value.notes === undefined ? {} : {notes:value.notes as string}), ...(phase === undefined ? {} : {phase}) };
 }
 
 function parseBudget(value: unknown): Budget {
@@ -122,7 +123,8 @@ function parseBudget(value: unknown): Budget {
 
 function parseCash(value: unknown): CashMovement {
   if (!record(value) || !id(value.id) || !tripDate(value.date) || typeof value.time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value.time) || !oneOf(value.currency,['SGD','MYR']) || !oneOf(value.kind,['exchange','withdrawal','refund','adjustment']) || !finite(value.amountMinor) || Math.round(value.amountMinor) !== value.amountMinor || Math.abs(value.amountMinor) > MAX_MINOR || !finite(value.feeMinor) || Math.round(value.feeMinor) !== value.feeMinor || value.feeMinor < 0 || value.feeMinor > MAX_MINOR || !(value.feeEurMinor === null || finite(value.feeEurMinor) && Math.round(value.feeEurMinor) === value.feeEurMinor && value.feeEurMinor >= 0 && value.feeEurMinor <= MAX_MINOR) || (value.eurMinor !== undefined && !(value.eurMinor === null || finite(value.eurMinor) && Math.round(value.eurMinor) === value.eurMinor && Math.abs(value.eurMinor) <= MAX_MINOR)) || !str(value.notes,5000)) fail('cash movement is invalid');
-  return { id:value.id,date:value.date,time:value.time,currency:value.currency,kind:value.kind,amountMinor:value.amountMinor,feeMinor:value.feeMinor,feeEurMinor:value.feeEurMinor, ...(value.eurMinor === undefined ? {} : {eurMinor:value.eurMinor as number | null}),notes:value.notes };
+  const rate = value.rate === undefined ? undefined : value.rate === null || finite(value.rate) && value.rate > 0 && value.rate <= 1_000_000 ? value.rate : fail('cash rate is invalid');
+  return { id:value.id,date:value.date,time:value.time,currency:value.currency,kind:value.kind,amountMinor:value.amountMinor,feeMinor:value.feeMinor,feeEurMinor:value.feeEurMinor, ...(rate === undefined ? {} : {rate}), ...(value.eurMinor === undefined ? {} : {eurMinor:value.eurMinor as number | null}),notes:value.notes };
 }
 
 function parseRevision(value: unknown): RecordRevision {
@@ -185,7 +187,7 @@ function initialMeta(state: Omit<State,'meta'>, deviceId: string): State['meta']
   Object.entries(state.dayPreferences).forEach(([day,preference]) => groups.push(['dayPreference',day,preference]));
   groups.forEach(([kind,recordId,value]) => records[recordKeyFor(kind,recordId)] = baselineRevision(kind,recordId,value));
   records['settings:budget'] = baselineRevision('settings','budget',state.budget);
-  records['settings:rates'] = baselineRevision('settings','rates',state.rates);
+  records['settings:rates'] = baselineRevision('settings','rates',{rates:state.rates,rateDates:state.rateDates ?? {SGD:null,MYR:null}});
   records['settings:appearance'] = baselineRevision('settings','appearance',{theme:state.theme,family:state.family});
   return { deviceId,records };
 }
@@ -193,10 +195,19 @@ function initialMeta(state: Omit<State,'meta'>, deviceId: string): State['meta']
 export function createInitialState(activities: Activity[], checks: string[], deviceId = createDeviceId()): State {
   const base = {
     version:2 as const,
-    activities: activities.map(parseActivity), customPlaces:[], favorites:[], notes:[], expenses:[], budget:null, rates:{SGD:null,MYR:null}, checks:[...checks], theme:'auto' as const, family:false,
+    activities: activities.map(parseActivity), customPlaces:[], favorites:[], notes:[], expenses:[], budget:null, rates:{SGD:null,MYR:null}, rateDates:{SGD:null,MYR:null}, checks:[...checks], theme:'auto' as const, family:false,
     cash:[],budgets:[],trash:[],triedDishes:[],dayPreferences:{},
   };
   return { ...base, meta:initialMeta(base,deviceId) };
+}
+
+function parseDayPreference(date: string, value: unknown): DayPreference {
+  const activeB = record(value) && value.active === 'B';
+  const entries = activeB ? value.preferences : value;
+  if (!tripDate(date) || !Array.isArray(entries) || entries.length > 20 || entries.some(item => !oneOf(item,['quiet','normal','intense','rain','children','culture','food','walking']))) fail('day preference is invalid');
+  const preferences = [...new Set(entries as string[])];
+  if (preferences.length !== entries.length) fail('duplicate day preference');
+  return activeB ? { preferences, active: 'B' } : preferences;
 }
 
 function validateStateV2(value: unknown, knownPlaceIds?: string[]): State {
@@ -212,12 +223,7 @@ function validateStateV2(value: unknown, knownPlaceIds?: string[]): State {
   const trash = arrayOf(value.trash,'trash',parseActivity);
   const triedDishes = arrayOf(value.triedDishes,'triedDishes',item => { if (!id(item)) fail('tried dish id is invalid'); return item; });
   if (!record(value.dayPreferences) || Object.keys(value.dayPreferences).length > LIMITS.dayPreferences) fail('day preferences are invalid');
-  const dayPreferences: Record<string,string[]> = {};
-  for (const [date, preferences] of Object.entries(value.dayPreferences)) {
-    if (!tripDate(date) || !Array.isArray(preferences) || preferences.length > 20 || preferences.some(item => !oneOf(item,['quiet','normal','intense','rain','children','culture','food','walking']))) fail('day preference is invalid');
-    dayPreferences[date] = [...new Set(preferences as string[])];
-    if (dayPreferences[date].length !== preferences.length) fail('duplicate day preference');
-  }
+  const dayPreferences = Object.fromEntries(Object.entries(value.dayPreferences).map(([date, preferences]) => [date, parseDayPreference(date, preferences)]));
   unique(activities.map(item=>item.id),'activity'); unique(customPlaces.map(item=>item.id),'place'); unique(notes.map(item=>item.id),'note'); unique(expenses.map(item=>item.id),'expense'); unique(favorites,'favorite'); unique(checks,'check'); unique(cash.map(item=>item.id),'cash'); unique(budgets.map(item=>item.id),'budget'); unique(trash.map(item=>item.id),'trash'); unique(triedDishes,'dish');
   if (activities.some(item => trash.some(removed => removed.id === item.id))) fail('an activity cannot be active and trashed');
   const known = new Set(knownPlaceIds ?? []);
@@ -231,6 +237,8 @@ function validateStateV2(value: unknown, knownPlaceIds?: string[]): State {
   let budget: number | null;
   if (value.budget === null) budget=null; else if (finite(value.budget) && value.budget>=0 && value.budget<=1_000_000_000) budget=value.budget; else return fail('budget is invalid');
   if (!record(value.rates) || !(value.rates.SGD === null || finite(value.rates.SGD) && value.rates.SGD>0 && value.rates.SGD<=1_000_000) || !(value.rates.MYR === null || finite(value.rates.MYR) && value.rates.MYR>0 && value.rates.MYR<=1_000_000)) fail('rates are invalid');
+  const rateDatesRaw = value.rateDates === undefined ? {SGD:null,MYR:null} : value.rateDates;
+  if (!record(rateDatesRaw) || !(['SGD','MYR'] as const).every(currency => rateDatesRaw[currency] === null || typeof rateDatesRaw[currency] === 'string' && tripDate(rateDatesRaw[currency]))) fail('rate dates are invalid');
   if (!oneOf(value.theme,['auto','light','dark']) || typeof value.family !== 'boolean') fail('settings are invalid');
   const meta = parseMeta(value.meta);
   const active = new Map<string,unknown>();
@@ -246,7 +254,7 @@ function validateStateV2(value: unknown, knownPlaceIds?: string[]): State {
   triedDishes.forEach(item=>active.set(recordKeyFor('dish',item),item));
   Object.entries(dayPreferences).forEach(([day,preference])=>active.set(recordKeyFor('dayPreference',day),preference));
   active.set('settings:budget',budget);
-  active.set('settings:rates',value.rates);
+  active.set('settings:rates',{rates:value.rates,rateDates:rateDatesRaw});
   active.set('settings:appearance',{theme:value.theme,family:value.family});
   for (const [key] of active) {
     const revision = meta.records[key];
@@ -258,7 +266,7 @@ function validateStateV2(value: unknown, knownPlaceIds?: string[]): State {
     if (!revision.deleted && !active.has(key)) fail(`live record is missing: ${key}`);
     if (revision.parents.length > MAX_REVISIONS_PER_RECORD) fail('record ancestry is too deep');
   }
-  return { version:2,activities,customPlaces,favorites,notes,expenses,budget,rates:{SGD:value.rates.SGD as number|null,MYR:value.rates.MYR as number|null},checks,theme:value.theme,family:value.family,cash,budgets,trash,triedDishes,dayPreferences,meta };
+  return { version:2,activities,customPlaces,favorites,notes,expenses,budget,rates:{SGD:value.rates.SGD as number|null,MYR:value.rates.MYR as number|null},rateDates:{SGD:rateDatesRaw.SGD as string|null,MYR:rateDatesRaw.MYR as string|null},checks,theme:value.theme,family:value.family,cash,budgets,trash,triedDishes,dayPreferences,meta };
 }
 
 export function validateState(value: unknown, knownPlaceIds?: string[]): State {
@@ -366,7 +374,7 @@ export function entities(state:State):Map<string,Entity> {
   state.activities.forEach(x=>put('activity',x.id,x)); state.customPlaces.forEach(x=>put('place',x.id,x)); state.notes.forEach(x=>put('note',x.id,x)); state.expenses.forEach(x=>put('expense',x.id,x));
   state.favorites.forEach(x=>put('favorite',x,x));state.checks.forEach(x=>put('check',x,x));state.cash.forEach(x=>put('cash',x.id,x));state.budgets.forEach(x=>put('budget',x.id,x));state.trash.forEach(x=>put('trash',x.id,x));state.triedDishes.forEach(x=>put('dish',x,x));
   Object.entries(state.dayPreferences).forEach(([date,preferences])=>put('dayPreference',date,preferences));
-  put('settings','budget',state.budget);put('settings','rates',state.rates);put('settings','appearance',{theme:state.theme,family:state.family});
+  put('settings','budget',state.budget);put('settings','rates',{rates:state.rates,rateDates:state.rateDates ?? {SGD:null,MYR:null}});put('settings','appearance',{theme:state.theme,family:state.family});
   return result;
 }
 
@@ -390,13 +398,15 @@ export function applyEntity(state:State,key:string,value:unknown,deleted:boolean
   if(kind==='dish') {if(!deleted&&value!==recordId)fail('dish id does not match its key');return {...state,triedDishes:deleted?state.triedDishes.filter(item=>item!==recordId):[...new Set([...state.triedDishes,recordId])]};}
   if(kind==='dayPreference') {
     const dayPreferences={...state.dayPreferences};
-    if(deleted) delete dayPreferences[recordId]; else if(Array.isArray(value)) dayPreferences[recordId]=[...value] as string[]; else fail('day preference is invalid');
+    if(deleted) delete dayPreferences[recordId]; else dayPreferences[recordId]=parseDayPreference(recordId,value);
     return {...state,dayPreferences};
   }
   if(kind==='settings' && recordId==='budget') return {...state,budget:deleted||value===null?null:finite(value)?value:fail('settings budget is invalid')};
   if(kind==='settings' && recordId==='rates') {
-    if(!record(value)||!(value.SGD===null||finite(value.SGD))||!(value.MYR===null||finite(value.MYR))) fail('settings rates are invalid');
-    return {...state,rates:{SGD:value.SGD as number|null,MYR:value.MYR as number|null}};
+    const rates = record(value) && record(value.rates) ? value.rates : value;
+    const dates = record(value) && record(value.rateDates) ? value.rateDates : {SGD:null,MYR:null};
+    if(!record(rates)||!(rates.SGD===null||finite(rates.SGD))||!(rates.MYR===null||finite(rates.MYR))||!record(dates)||!(dates.SGD===null||typeof dates.SGD==='string'&&tripDate(dates.SGD))||!(dates.MYR===null||typeof dates.MYR==='string'&&tripDate(dates.MYR))) fail('settings rates are invalid');
+    return {...state,rates:{SGD:rates.SGD as number|null,MYR:rates.MYR as number|null},rateDates:{SGD:dates.SGD as string|null,MYR:dates.MYR as string|null}};
   }
   if(kind==='settings' && recordId==='appearance') {
     if(!record(value)||!oneOf(value.theme,['auto','light','dark'])||typeof value.family!=='boolean') fail('settings appearance is invalid');

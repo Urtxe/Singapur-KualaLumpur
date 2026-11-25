@@ -1,7 +1,9 @@
 import { alerts, checklist, rainPlans, sources, transport } from './data'
 import { connectionGuide, placeResearch } from './guide-view'
+import { localEvents, placeGuides } from './guide-data'
 import type { Place, State } from './types'
-import { allPlaces, button, city, dayOptions, e, icon, kind, mapSearch, option, sourceLink, title } from './ui'
+import { activeActivities, allPlaces, button, city, dateShort, dayOptions, e, icon, kind, mapSearch, option, sourceLink, title } from './ui'
+import './explore.css'
 
 export function emergencyLinks() {
   return `<div class="emergency-grid"><section><h3>Singapur</h3><a class="button" href="tel:999">Policía · 999</a><a class="button" href="tel:995">Ambulancia y bomberos · 995</a></section><section><h3>Malasia</h3><a class="button" href="tel:999">Emergencias · 999</a></section></div>`
@@ -11,26 +13,45 @@ export interface PlaceView { tab: 'list' | 'map'; date: string; query: string; c
 
 function placeCard(place: Place, state: State) {
   const favorite = state.favorites.includes(place.id)
-  return `<article class="card place-card" data-place="${e(place.id)}">
-    <div class="place-top"><span class="tag ${place.kind === 'must' ? 'ok' : ''}">${kind[place.kind]}</span><button type="button" class="icon-button favorite${favorite ? ' chosen' : ''}" data-action="favorite" data-id="${e(place.id)}" aria-pressed="${favorite}" aria-label="Favorito ${e(place.name)}">${icon('star')}</button></div>
-    <h2>${e(place.name)}</h2><p class="muted locality">${icon('lugares')} ${city[place.city]} · ${e(place.area)}</p><p>${e(place.description)}</p>
-    <details><summary>Horario, entradas y accesibilidad</summary>${placeResearch(place,state)}${sourceLink(place.source)}</details>
-    <div class="actions">${button('Añadir al plan', 'place-add', 'plus', 'compact', place.id)}${button(`Cómo llegar a ${place.name}`, 'directions', 'lugares', 'compact', place.id)}${button('Copiar dirección', 'copy', 'copy', 'compact', place.id)}
-      <a class="button compact" href="${e(mapSearch(place))}" target="_blank" rel="noopener noreferrer">Abrir Maps</a>${state.customPlaces.some(item => item.id === place.id) ? button('Editar lugar', 'edit-place', '', 'compact', place.id) : ''}
-    </div></article>`
+  const image = place.city === 'sg' ? 'cover.webp' : 'kuala-lumpur.webp'
+  const duration = placeGuides[place.id]?.duration ?? 'Orientativa: consultar ficha'
+  return `<article class="card place-card explore-place" data-place="${e(place.id)}">
+    <div class="explore-photo-wrap"><img class="explore-photo" src="${import.meta.env.BASE_URL}${image}" alt="Vista de ${city[place.city]}; imagen de contexto, no una fotografía de ${e(place.name)}" width="960" height="540" loading="lazy"><span class="explore-photo-note">Vista de ${city[place.city]} · imagen de contexto</span><button type="button" class="icon-button favorite${favorite ? ' chosen' : ''}" data-action="favorite" data-id="${e(place.id)}" aria-pressed="${favorite}" aria-label="${favorite ? 'Quitar de' : 'Añadir a'} favoritos: ${e(place.name)}">${icon('star')}</button></div>
+    <div class="explore-place-body"><div class="explore-place-tags"><span class="tag ${place.kind === 'must' ? 'ok' : ''}">${kind[place.kind]}</span><span>${icon('lugares')} ${e(place.area)}</span></div>
+    <h2>${e(place.name)}</h2><p class="explore-reason">${e(place.description)}</p>
+    <div class="explore-facts"><span><small>Duración</small><strong>${e(duration)}</strong></span><span><small>Precio</small><strong>${e(place.price)}</strong></span></div>
+    <details><summary>Detalles del lugar</summary>${placeResearch(place,state)}${sourceLink(place.source)}</details>
+    <div class="actions explore-card-actions">${button('Añadir al plan', 'place-add', 'plus', 'primary compact', place.id)}${button(`Cómo llegar a ${place.name}`, 'directions', 'lugares', 'compact', place.id)}<a class="button compact" href="${e(mapSearch(place))}" target="_blank" rel="noopener noreferrer">Maps</a>${state.customPlaces.some(item => item.id === place.id) ? button('Editar lugar', 'edit-place', '', 'compact', place.id) : ''}</div></div></article>`
 }
 
 function normalized(value: string) { return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') }
 
 export function placeList(state: State, view: PlaceView) {
   const query = normalized(view.query.trim())
-  const matches = allPlaces(state).filter(place => (view.city === 'all' || view.city === place.city) && (view.kind === 'all' || view.kind === place.kind || (view.kind === 'favorite' && state.favorites.includes(place.id))) && normalized(`${place.name} ${place.address} ${place.area} ${city[place.city]}`).includes(query))
-  return `<p class="result-count" aria-live="polite">${matches.length} ${matches.length === 1 ? 'lugar' : 'lugares'}</p><div class="places-grid">${matches.map(place => placeCard(place, state)).join('') || '<div class="card empty">No hay lugares con esos filtros.</div>'}</div>`
+  const featured = new Set(['merlion','helix','gardens','tekka','kampong-glam','petronas','klcc-park','batu-caves','central-market'])
+  const neighborhood = (place: Place) => /chinatown|kampong glam|little india|brickfields|kampung baru|bukit bintang|pasar seni|marina bay/i.test(`${place.area} ${place.name}`)
+  const family = (place: Place) => /niñ|famil|pausa|abuela|descans/i.test(`${place.description} ${place.access}`)
+  const rainy = (place: Place) => /interior|cubiert|climatiz|protegida|lluvia/i.test(`${place.description} ${place.shade}`)
+  const free = (place: Place) => /gratis|gratuito|público|libre/i.test(place.price)
+  const eventIds = new Set(localEvents.filter(event => event.start <= '2026-12-11' && event.end >= '2026-12-04' && event.placeId).map(event => event.placeId!))
+  const matches = allPlaces(state).filter(place => {
+    if (view.city !== 'all' && view.city !== place.city) return false
+    const category = view.kind === 'all' ? 'featured' : view.kind
+    const categoryMatch = category === 'allPlaces' || category === 'all' || category === 'featured' && featured.has(place.id) || category === 'must' && place.kind === 'must' || category === 'neighborhoods' && neighborhood(place) || category === 'food' && place.kind === 'food' || category === 'family' && family(place) || category === 'rain' && rainy(place) || category === 'free' && free(place) || category === 'favorite' && state.favorites.includes(place.id) || category === 'events' && eventIds.has(place.id)
+    return categoryMatch && normalized(`${place.name} ${place.address} ${place.area} ${city[place.city]}`).includes(query)
+  })
+  if (view.kind === 'events') return eventList(view)
+  return `<p class="result-count" aria-live="polite">${matches.length} ${matches.length === 1 ? 'experiencia' : 'experiencias'}</p><div class="places-grid explore-grid">${matches.map(place => placeCard(place, state)).join('') || '<div class="card empty">No hay experiencias con esos filtros. Prueba otra ciudad o categoría.</div>'}</div>`
+}
+
+function eventList(view: PlaceView) {
+  const events = localEvents.filter(item => item.start <= '2026-12-11' && item.end >= '2026-12-04' && (view.city === 'all' || item.city === view.city))
+  return `<p class="result-count" aria-live="polite">${events.length} eventos durante la estancia · <a href="#eventos">Ver agenda local completa</a></p><div class="places-grid explore-grid">${events.map(item => `<article class="card explore-event-card"><span class="tag ${item.status === 'confirmed' ? 'ok' : ''}">${e(item.price === 'gratis' ? 'Gratis' : item.price === 'pago' ? 'De pago' : 'Precio por confirmar')}</span><p class="locality">${city[item.city]} · ${e(item.start)}${item.end !== item.start ? ` – ${e(item.end)}` : ''}${item.time ? ` · ${e(item.time)}` : ''}</p><h2>${e(item.name)}</h2><p>${e(item.detail)}</p><p class="fineprint">Comprobado ${e(item.verified)} · detalles y fuente en agenda local</p><div class="actions">${button('Añadir al plan','event-add','plus','primary compact',item.id)}${sourceLink(item.source)}</div></article>`).join('')}</div>`
 }
 
 function geographicMap(state: State, view: PlaceView) {
   const located = allPlaces(state).filter((p): p is Place & {lat:number;lon:number} => p.city === view.mapCity && p.lat !== null && p.lon !== null)
-  const visits = state.activities.filter(a => a.date === view.date && a.plan !== 'B' && !a.archived && a.status !== 'skipped').flatMap(item => {
+  const visits = activeActivities(state, view.date).flatMap(item => {
     const place = located.find(p => p.id === item.placeId)
     return place ? [place] : []
   })
@@ -52,9 +73,9 @@ function geographicMap(state: State, view: PlaceView) {
     const sequence = visits.findIndex(item => item.id === p.id) + 1
     return `<button type="button" class="map-pin${p.id === view.selection ? ' selected' : ''}${state.favorites.includes(p.id) ? ' map-favorite' : ''}" style="--x:${x}%;--y:${y}%" data-action="marker" data-id="${e(p.id)}" aria-label="${e(kind[p.kind])} · ${e(p.name)}" aria-pressed="${p.id === view.selection}">${sequence || icon(markerIcon[p.kind])}</button>`
   }).join('')}</div><div class="map-itinerary"><h3>${view.mapFilter === 'day' ? 'Orden de visitas' : 'Puntos del mapa'}</h3><ol>${(view.mapFilter === 'day' ? visits : unique).map(p => `<li><button class="text-link" type="button" data-action="marker" data-id="${e(p.id)}">${e(p.name)}</button></li>`).join('')}</ol>${hotel && view.mapFilter === 'day' ? `<button class="text-link" type="button" data-action="marker" data-id="${e(hotel.id)}">${icon('hotel')} ${e(hotel.name)}</button>` : ''}</div></div>` : '<p>No hay puntos con coordenadas para esta selección.</p>'
-  return `<div class="card map-card"><h2>Mapa esquemático offline</h2><p>Puntos geográficos aproximados. Las líneas discontinuas representan el orden del plan A.</p>
+  return `<div class="card map-card explore-map-card"><div class="explore-map-intro"><div><span class="eyebrow">${city[view.mapCity]}</span><h2>Mapa de lugares</h2><p>Vista esquemática offline con puntos geográficos aproximados. La línea discontinua sigue el orden del plan activo; no representa calles ni navegación.</p></div><div class="actions"><a class="button compact" href="#gastronomia">${icon('gastronomia')} Gastronomía</a><a class="button compact" href="#eventos">${icon('eventos')} Eventos</a><a class="button compact" href="#transporte">${icon('transporte')} Transporte</a></div></div>
     <div class="control-grid"><label class="field"><span>Ciudad del mapa</span><select data-action="map-city">${option('sg','Singapur',view.mapCity)}${option('kl','Kuala Lumpur',view.mapCity)}</select></label>
-    <label class="field"><span>Día del mapa</span><select data-action="map-date">${dayOptions(view.date)}</select></label>
+    <label class="field"><span>Día del mapa</span><select aria-label="Día del mapa" data-action="explore-date">${dayOptions(view.date)}</select></label>
     <label class="field"><span>Puntos</span><select aria-label="Puntos del mapa" data-action="map-filter">${[['day','Actividades del día'],['all','Todos'],['favorite','Favoritos'],...Object.entries(kind)].map(([value,name])=>option(value,name,view.mapFilter)).join('')}</select></label></div>
     ${map}<div class="actions">${chosen ? button(view.centered ? 'Ver área completa' : 'Centrar en este lugar', 'center-map', 'map') : ''}</div>
     <p class="muted">El esquema está disponible sin red. Las indicaciones por calles, el tráfico y Google Maps requieren conexión.</p></div>
@@ -62,22 +83,29 @@ function geographicMap(state: State, view: PlaceView) {
 }
 
 export function placeView(state: State, view: PlaceView) {
-  const content = view.tab === 'list' ? `<div class="filter-bar"><label class="search-field">${icon('search')}<span class="sr-only">Buscar lugares</span><input type="search" data-action="place-query" placeholder="Busca un lugar o un barrio" value="${e(view.query)}"></label><label><span class="sr-only">Ciudad</span><select data-action="place-city">${[['all','Todas las ciudades'],['sg','Singapur'],['kl','Kuala Lumpur']].map(([v,l]) => option(v,l,view.city)).join('')}</select></label><label><span class="sr-only">Tipo de lugar</span><select data-action="place-kind">${[['all','Todos los tipos'],...Object.entries(kind),['favorite','Favoritos']].map(([v,l]) => option(v,l,view.kind)).join('')}</select></label></div><div id="place-results">${placeList(state, view)}</div>` : geographicMap(state, view)
-  return `${title('Lugares', 'Encuentra un sitio para visitar, comer o refugiarte de la lluvia.', button('Añadir lugar','new-place','plus','primary'))}<div class="segmented" role="group" aria-label="Vista de lugares"><button type="button" data-action="place-list" aria-pressed="${view.tab === 'list'}">${icon('list')} Lista</button><button type="button" data-action="place-map" aria-pressed="${view.tab === 'map'}">${icon('map')} Mapa</button></div>${content}`
+  const categories: [string,string,string][] = [['featured','Para empezar','compass'],['allPlaces','Todos los lugares','list'],['must','Imprescindibles','star'],['neighborhoods','Barrios','map'],['food','Gastronomía','gastronomia'],['family','Con niñas','people'],['rain','Si llueve','rain'],['free','Gratis','check'],['events','Eventos','eventos'],['favorite','Favoritos','star']]
+  const content = view.tab === 'list' ? `<div class="explore-toolbar"><div class="explore-city-switch" role="group" aria-label="Ciudad">${[['all','Ambas ciudades'],['sg','Singapur'],['kl','Kuala Lumpur']].map(([id,label]) => `<button type="button" data-action="explore-city" data-id="${id}" aria-pressed="${view.city === id}">${label}</button>`).join('')}</div></div><nav class="explore-categories" aria-label="Categorías de lugares">${categories.map(([id,label,ico]) => `<button type="button" data-action="explore-category" data-id="${id}" aria-pressed="${view.kind === id}">${icon(ico)}<span>${label}</span></button>`).join('')}</nav><div class="filter-bar explore-search"><label class="search-field">${icon('search')}<span class="sr-only">Buscar lugares</span><input type="search" data-action="place-query" placeholder="Busca un lugar o un barrio" value="${e(view.query)}"></label><button type="button" class="button compact" data-action="place-map">${icon('map')} Ver mapa</button></div><div class="explore-links"><a href="#gastronomia">Guía de platos</a><a href="#eventos">Agenda local</a><a href="#transporte">Cómo moverse</a></div><div id="place-results">${placeList(state, view)}</div>` : geographicMap(state, view)
+  return `<header class="explore-header"><div><span class="eyebrow">Singapur · Kuala Lumpur</span><h1>Explorar</h1><p>Lugares elegidos para descubrir a vuestro ritmo.</p></div><div class="explore-header-tools"><label class="field explore-date"><span>Añadir al día</span><select data-action="explore-date">${dayOptions(view.date)}</select></label><div class="segmented" role="group" aria-label="Vista de Explorar"><button type="button" data-action="place-list" aria-pressed="${view.tab === 'list'}">${icon('photo')} Descubrir</button><button type="button" data-action="place-map" aria-pressed="${view.tab === 'map'}">${icon('map')} Mapa</button></div></div></header>${content}`
 }
 
 export function transportView(state: State) {
   return `${title('Transporte', 'Opciones para cinco viajeros, con tiempo para conexiones y equipaje.')}${connectionGuide(state)}<h2 class="section-heading">Billetes, normas y operadores</h2><div class="reference-grid">${transport.map((item) => `<article class="card reference"><span class="quick-icon">${icon('transporte')}</span><h2>${e(item.title)}</h2><p>${e(item.detail)}</p>${sourceLink(item.source)}</article>`).join('')}</div>`
 }
 
-export function travel(state: State, tools = '') {
-  return `${title('Viaje', 'Documentación, conexión y planes de emergencia.')}${tools}
+export function preparations(state: State) {
+  return `${title('Preparativos', 'Todo lo que conviene revisar antes de salir.')}
     <div class="travel-grid"><div><section class="card">
     <div class="section-line"><h2>Lista de preparación</h2><span class="tag ok">${state.checks.length}/${checklist.length}</span></div>
     <div class="checklist">${checklist.map(item => `<div class="check-row"><label><input type="checkbox" data-action="check" data-id="${e(item.id)}"${state.checks.includes(item.id) ? ' checked' : ''}><span><strong>${e(item.title)}</strong><span>${e(item.detail)}</span></span></label>${sourceLink(item.source)}</div>`).join('')}</div></section>
-    <section class="card"><h2>Fuentes y consultas</h2><p>Consulta del 25 de noviembre de 2026. Cada ficha y evento incluye su referencia.</p>
-    <ul class="source-list">${sources.map(item => `<li>${sourceLink(item.url, item.label)}<p>${e(item.note)}</p></li>`).join('')}</ul></section></div>
-    <div><section class="card"><h2>Emergencias</h2>${emergencyLinks()}<a href="#emergencias" class="button">Ver direcciones y contactos</a></section>
-    <section class="card"><h2>Lluvia o cansancio</h2>${rainPlans.map(plan => `<div class="notice"><span class="notice-icon">${icon('rain')}</span><div><h3>${e(plan.title)}</h3><p>${e(plan.detail)}</p></div></div>`).join('')}</section>
-    <section class="card"><h2>Vuelos y traslados</h2>${alerts.map(alert => `<div class="notice"><div><h3>${e(alert.title)}</h3><p>${e(alert.detail)}</p></div></div>`).join('')}</section></div></div>`
+    <details class="card"><summary>Fuentes y consultas</summary><p>Consultadas el 25 de noviembre de 2026.</p>
+    <ul class="source-list">${sources.map(item => `<li>${sourceLink(item.url, item.label)}<p>${e(item.note)}</p></li>`).join('')}</ul></details></div>
+    <div><details class="card"><summary>Lluvia o cansancio</summary>${rainPlans.map(plan => `<div class="notice"><span class="notice-icon">${icon('rain')}</span><div><h3>${e(plan.title)}</h3><p>${e(plan.detail)}</p></div></div>`).join('')}</details></div></div>`
+}
+
+export function travel(state: State) {
+  const flights = activeActivities(state).filter(item => item.flight && item.title.startsWith('Vuelo')).sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
+  const hotels = allPlaces(state).filter(place => place.kind === 'hotel')
+  return `${title('Vuelos y hoteles', '')}<div class="travel-grid"><section class="more-group"><h2>Vuelos</h2>${flights.map(flight => `<article class="trip-booking"><span>${icon('plane')} ${dateShort(flight.date)}</span><h3>${e(flight.title)}</h3><p>${e(flight.localTime || flight.time || 'Hora pendiente')}</p><small>${flight.flight === 'provisional' ? 'Horario provisional' : e(flight.tickets)}</small></article>`).join('')}
+    <details class="trip-booking"><summary>Avisos de vuelos y traslados</summary>${alerts.map(alert => `<h3>${e(alert.title)}</h3><p>${e(alert.detail)}</p>`).join('')}</details></section>
+    <section class="more-group"><h2>Alojamientos</h2>${hotels.map(hotel => `<article class="trip-booking"><span>${icon('hotel')} ${city[hotel.city]}</span><h3>${e(hotel.name)}</h3><p>${e(hotel.address)}</p>${button('Cómo llegar','directions','navigation','',hotel.id)}</article>`).join('')}</section></div>`
 }

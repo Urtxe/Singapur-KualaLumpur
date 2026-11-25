@@ -11,7 +11,7 @@ test('opens from a cold cache under a simulated 1 Mbps connection', async ({ pag
   page.on('request',request=>{ if (!request.url().startsWith('http://127.0.0.1:4173/')) remote.push(request.url()); });
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto('http://127.0.0.1:4173/asia-trip/');
-  await expect(page.getByRole('heading',{name:'HOY',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Hoy',exact:true})).toBeVisible();
   await expect(page.getByText('Disponible offline',{exact:true})).toBeVisible({timeout:20_000});
   const times = await page.evaluate(()=>{
     const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;

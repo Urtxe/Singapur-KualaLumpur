@@ -3,12 +3,14 @@ import './premium.css'
 import './planner.css'
 import './finance.css'
 import './offline.css'
-import { alerts, baseActivities } from './data'
+import './trip-design.css'
+import { baseActivities } from './data'
 import type { AppContext } from './app-api'
 import { dialogContent, noteForm, placeForm } from './dialogs'
 import { asiaDate, createInitialState, loadState, saveState, stampChanges, STORAGE_KEY } from './state'
 import { registerSW } from './sw-register'
-import { mountPlanner, mountToday, openActivity } from './planner'
+import { mountPlanner, openActivity } from './planner'
+import { mountToday } from './today'
 import { mountFinance, openExpense } from './finance'
 import { mountExchange } from './exchange-view'
 import { mountOffline } from './offline-view'
@@ -16,8 +18,8 @@ import { getAttachment, removeAttachment, storeAttachment } from './vault'
 import { eventFilters, eventSeed, eventsView, foodFilters, foodResults, gastronomy, safetyView } from './guide-view'
 import { journalView } from './journal'
 import type { Activity, Note, Place, State } from './types'
-import { allPlaces, button, cityHotel, currentHotel, dateLong, directions, e, extraRoutes, getDay, getPlace, icon, labels, mapSearch, offlineText, option, placeQuery, planningDay, primaryRoutes, publicPlaces, routes, tripStart, type Route } from './ui'
-import { placeList, placeView, transportView, travel, type PlaceView } from './views'
+import { activeActivities, activePlan, activitiesForPlan, allPlaces, button, cityHotel, directions, e, getDay, getPlace, icon, labels, mapSearch, offlineText, option, placeQuery, planningDay, primaryRoutes, publicPlaces, routes, type Route } from './ui'
+import { placeList, placeView, preparations, transportView, travel, type PlaceView } from './views'
 
 const root = document.querySelector<HTMLElement>('#app')!
 const navLink = (item: Route) => `<a href="#${item}" data-route="${item}">${icon(item)}<span>${labels[item]}</span></a>`
@@ -26,14 +28,10 @@ root.innerHTML = `
   <aside class="sidebar">
     <a class="brand" href="#inicio"><span class="brand-icon">${icon('compass')}</span><span><strong>Asia Trip</strong><small>Singapur · Kuala Lumpur</small></span></a>
     <nav class="navigation" aria-label="Navegación principal">${primaryRoutes.map(navLink).join('')}</nav>
-    <nav class="side-navigation" aria-label="Herramientas del viaje">${extraRoutes.map(navLink).join('')}</nav>
-    <div class="side-foot"><div class="route-card"><small>DICIEMBRE 2026</small><div><span>BIO</span><span>SIN</span><span>KUL</span></div></div></div>
   </aside>
   <div class="workspace">
     <header class="topbar"><a class="mobile-brand" href="#inicio"><span class="brand-icon">${icon('compass')}</span><strong>Asia Trip</strong></a>
-      <div class="top-date">${icon('agenda')} <span id="asia-today"></span></div>
-      <div class="top-actions"><a href="#offline" id="offline-status" class="offline-status" aria-label="Diagnóstico offline">${icon('wifi')} <span role="status"></span></a>
-        <button class="icon-button theme-button" type="button" aria-label="Preferencias de apariencia" data-action="theme">${icon('moon')}</button></div></header>
+      <a href="#offline" id="offline-status" class="offline-status" aria-label="Diagnóstico offline">${icon('wifi')} <span role="status"></span></a></header>
     <main id="content" tabindex="-1"></main>
   </div>
   <dialog id="modal" aria-labelledby="dialog-title"></dialog><div class="toast" role="status" aria-live="polite" hidden></div>`
@@ -57,10 +55,10 @@ function diskSnapshot() {
 }
 let lastSaved = diskSnapshot()
 let isCorrupt = stored.status === 'corrupt'
-let storageWarning = stored.status === 'unavailable' ? 'El almacenamiento local no está disponible. Los cambios requieren un navegador con almacenamiento habilitado.' : isCorrupt ? 'La copia local no se pudo leer. Puedes restaurar una copia JSON desde el diario.' : ''
+let storageWarning = stored.status === 'unavailable' ? 'El almacenamiento local no está disponible. Los cambios requieren un navegador con almacenamiento habilitado.' : isCorrupt ? 'La copia local no se pudo leer. Puedes recuperarla en Compartir e importar.' : ''
 let agendaDate = planningDay(new Date())
-let tab: 'notes' | 'expenses' | 'backup' = 'notes'
-const view: PlaceView = { tab: 'list', date: agendaDate, query: '', city: 'all', kind: 'all', selection: '', mapCity: 'sg', mapFilter: 'day', centered: false }
+let todayPreview: string | undefined
+const view: PlaceView = { tab: 'list', date: agendaDate, query: '', city: 'all', kind: 'featured', selection: '', mapCity: getDay(agendaDate).city === 'kl' ? 'kl' : 'sg', mapFilter: 'day', centered: false }
 let timer = 0
 let returnFocus: HTMLElement | null = null
 let routeContext: { destination: Place; hotel?: Place; previous?: Place; coords: string; activity?: Activity } | undefined
@@ -77,7 +75,9 @@ const app: AppContext = {
   directions: openDirections,
   places: () => allPlaces(state),
   selectedDate: () => agendaDate,
-  setSelectedDate: date => { agendaDate = date },
+  setSelectedDate: setAgendaDate,
+  todayPreview: () => todayPreview,
+  setTodayPreview: date => { todayPreview = date },
   quickSpend: activityId => openExpense(app, activityId),
   quickNote: activityId => openNote(undefined, activityId),
 }
@@ -85,6 +85,20 @@ const app: AppContext = {
 function route(): Route {
   const candidate = location.hash.slice(1) as Route
   return routes.includes(candidate) ? candidate : 'inicio'
+}
+
+function setAgendaDate(date: string) {
+  agendaDate = date
+  view.date = date
+  view.selection = ''
+  view.centered = false
+  const city = getDay(date).city
+  if (city !== 'air') view.mapCity = city
+}
+
+function navigationSection(section: Route) {
+  if (primaryRoutes.some(link => link === section)) return section
+  return section === 'eventos' || section === 'gastronomia' || section === 'transporte' ? 'lugares' : 'mas'
 }
 
 function announce(message: string) {
@@ -99,8 +113,7 @@ function applyTheme() {
   document.documentElement.dataset.theme = state.theme
 }
 
-function updateTopbar(now = new Date()) {
-  document.querySelector('#asia-today')!.textContent = `${dateLong(asiaDate(now))} · UTC+8`
+function updateTopbar() {
   const ready = 'serviceWorker' in navigator && !!navigator.serviceWorker.controller
   document.querySelector('#offline-status span')!.textContent = offlineText(ready)
   document.querySelector('#offline-status')!.classList.toggle('ready', ready)
@@ -114,10 +127,10 @@ function actionSelector(element: HTMLElement | null) {
 
 function render(focusPage = false) {
   const section = route()
-  const now = new Date()
   document.title = section === 'inicio' ? 'Asia Trip 2026' : `${labels[section]} · Asia Trip 2026`
+  document.documentElement.dataset.route = section
   document.querySelectorAll<HTMLElement>('[data-route]').forEach(link => {
-    if (link.dataset.route === section) link.setAttribute('aria-current', 'page')
+    if (link.dataset.route === navigationSection(section)) link.setAttribute('aria-current', 'page')
     else link.removeAttribute('aria-current')
   })
   const focused = document.activeElement instanceof HTMLElement && content.contains(document.activeElement) ? document.activeElement : null
@@ -127,19 +140,18 @@ function render(focusPage = false) {
   journalImages.clear()
   const screens: Partial<Record<Route, () => string>> = {
     lugares: () => placeView(state, view), transporte: () => transportView(state),
-    viaje: () => travel(state, travelHub()), eventos: eventsView, gastronomia: () => gastronomy(state), emergencias: () => safetyView(state),
+    viaje: () => travel(state), preparativos: () => preparations(state), mas: moreView,
+    diario: () => journalView(state), eventos: eventsView, gastronomia: () => gastronomy(state), emergencias: () => safetyView(state),
   }
   const mounted: Partial<Record<Route, (element: HTMLElement, ctx: AppContext) => void>> = {
-    inicio: mountToday, agenda: mountPlanner, gastos: mountFinance, compartir: mountExchange, offline: mountOffline,
+    inicio: mountToday, agenda: mountPlanner, gastos: mountFinance, compartir: mountExchange,
+    offline: (element, app) => mountOffline(element, app, 'diagnostics'), documentos: (element, app) => mountOffline(element, app, 'files'),
   }
-  const pane = '<div id="route-body"></div>'
-  const journal = section === 'diario' ? journalTabs() + (tab === 'notes' ? journalView(state) : pane) : ''
   content.innerHTML = (storageWarning ? `<div class="storage-warning" role="alert">${e(storageWarning)}</div>` : '') +
-    (section === 'diario' ? journal : section === 'inicio' ? pane + homeAnnex(now) : screens[section]?.() ?? pane)
+    (screens[section]?.() ?? '<div id="route-body"></div>')
   const body = content.querySelector<HTMLElement>('#route-body')
-  if (body && section === 'diario') (tab === 'expenses' ? mountFinance : mountExchange)(body,app)
-  else if (body) mounted[section]?.(body,app)
-  if (section === 'diario' && tab === 'notes') void loadJournalPhotos()
+  if (body) mounted[section]?.(body,app)
+  if (section === 'diario') void loadJournalPhotos()
   for (const entry of open) {
     const id = entry?.activity ?? entry?.place
     if (!id) continue
@@ -147,7 +159,7 @@ function render(focusPage = false) {
     if (details) details.open = true
   }
   applyTheme()
-  updateTopbar(now)
+  updateTopbar()
   if (focusPage) {
     content.focus({ preventScroll: true })
     window.scrollTo({ top: 0 })
@@ -159,22 +171,13 @@ function go(to: Route) {
   else location.hash = to
 }
 
-function travelHub() {
-  return `<nav aria-label="Herramientas de viaje" class="travel-tools">${extraRoutes.map(route =>
-    `<a href="#${route}"><span class="quick-icon">${icon(route)}</span><b>${labels[route]}</b></a>`).join('')}</nav>`
-}
-
-function homeAnnex(now: Date) {
-  const hotel = currentHotel(state,now)
-  const remaining = Math.max(0,Math.ceil((tripStart - now.valueOf()) / 60_000))
-  const done = state.activities.filter(item=>!item.archived && item.plan !== 'B' && item.status === 'done').length
-  const total = state.activities.filter(item=>!item.archived && item.plan !== 'B' && item.date).length
-  return `<section class="home-extras" aria-label="Accesos de viaje"><div class="actions">
-    ${hotel ? button('Volver al hotel','directions','hotel','',hotel.id) : ''}<a class="button" href="#emergencias">${icon('emergencias')} Emergencias</a>${state.family ? '' : `<a class="button" href="#compartir">${icon('compartir')} Compartir</a>`}</div>
-    ${state.family ? '</section>' : `${remaining ? `<div class="trip-progress"><span>${icon('plane')} Salida desde Bilbao</span><strong>${Math.floor(remaining / 1440)} días · ${Math.floor(remaining % 1440 / 60)} horas</strong></div>` : ''}
-    <div class="trip-progress"><span>${icon('check')} Avance del plan</span><strong>${done} de ${total} actividades</strong></div>
-    <details class="card"><summary>Avisos generales del viaje</summary><div class="travel-alerts">${alerts.map(alert=>`<div class="notice"><span class="notice-icon">${icon('alert')}</span><div><h3>${e(alert.title)}</h3><p>${e(alert.detail)}</p></div></div>`).join('')}</div></details>
-  </section>`}`
+function moreView() {
+  const item = (route: Route, glyph: string = route) => `<a href="#${route}"><span class="more-icon">${icon(glyph)}</span><span>${labels[route]}</span>${icon('chevron')}</a>`
+  return `<section class="more-screen"><header class="page-head"><h1>Más</h1></header><div class="more-layout">
+    <nav class="more-group" aria-label="Viaje"><h2>El viaje</h2>${item('viaje','plane')}${item('preparativos')}${item('diario')}${item('emergencias')}</nav>
+    <section class="more-group" aria-labelledby="more-device"><h2 id="more-device">En este dispositivo</h2>${item('compartir')}${item('documentos','document')}${item('offline','wifi')}
+      <details class="more-settings"><summary><span class="more-icon">${icon('settings')}</span>Configuración</summary><div class="actions">${button('Apariencia','theme','moon')}${button(state.family ? 'Desactivar modo familia' : 'Activar modo familia','family','people')}</div></details>
+    </section></div></section>`
 }
 
 const activityGroup = (item: Activity) => `${item.date}:${item.plan ?? 'A'}`
@@ -212,13 +215,6 @@ function applyActivityOrder(items: Activity[]) {
     nextIndex.set(key,index + 1)
     return groups.get(key)![index]
   })
-}
-
-function journalTabs() {
-  return tab === 'notes' ? '' : `<div class="segmented journal-nav" role="group" aria-label="Sección del diario">
-    <button type="button" data-action="diary-notes" aria-pressed="false">Notas</button>
-    <button type="button" data-action="diary-expenses" aria-pressed="${tab === 'expenses'}">Gastos</button>
-    <button type="button" data-action="diary-backup" aria-pressed="${tab === 'backup'}">Copias</button></div>`
 }
 
 async function loadJournalPhotos() {
@@ -289,16 +285,16 @@ function openDirections(id: string, activityId?: string) {
     kind: 'optional' as const, address: act.address, lat: act.lat ?? null, lon: act.lon ?? null, description: act.detail, photo: '', access: act.access ?? '', shade: '', price: '' } : undefined)
   if (!destination) return
   const now = new Date()
-  const planned = state.activities.filter(item => item.placeId === id).sort((a,b) => a.date.localeCompare(b.date))
+  const planned = activeActivities(state).filter(item => item.placeId === id).sort((a,b) => a.date.localeCompare(b.date))
   const section = route()
   const date = act?.date || (section === 'agenda' ? agendaDate : section === 'lugares' && view.tab === 'map' ? view.date : planned.find(item => item.date >= asiaDate(now))?.date ?? planned[0]?.date ?? agendaDate)
-  const visits = state.activities.filter(activity => activity.date === date)
+  const visits = act && !act.fixed && !act.flight ? activitiesForPlan(state,date,act.plan ?? 'A') : activeActivities(state,date)
   const index = visits.findIndex(item => activityId ? item.id === activityId : item.placeId === id)
   const prior = index > 0 ? visits.slice(0, index).reverse().find(item => item.status !== 'skipped' && item.placeId && item.placeId !== id) : undefined
   const previous = prior ? getPlace(state, prior.placeId) : undefined
   const hotel = getPlace(state, getDay(date).hotelId ?? cityHotel(destination.city))
   const originHotel = hotel?.city === destination.city ? hotel : getPlace(state, cityHotel(destination.city))
-  routeContext = { destination, previous, hotel: originHotel?.id === destination.id ? undefined : originHotel, coords: '', activity: visits[index] }
+  routeContext = { destination, previous, hotel: originHotel?.id === destination.id ? undefined : originHotel, coords: '', activity: visits[index] ?? act }
   const origin = routeContext.hotel ? 'hotel' : previous ? 'previous' : 'location'
   show('Cómo llegar', `<p><strong>${e(destination.name)}</strong> · ${e(destination.address)}</p><div class="form-grid"><label class="field"><span>Origen</span><select id="direction-origin">${routeContext.hotel ? option('hotel', `Hotel · ${routeContext.hotel.name}`, origin) : ''}${previous ? option('previous', `Lugar anterior · ${previous.name}`, origin) : ''}${option('location', 'Ubicación actual', origin)}</select></label><label class="field"><span>Modo</span><select id="direction-mode">${option('walking','A pie','walking')}${option('transit','Transporte público','walking')}${option('driving','Coche / Grab','walking')}</select></label></div><div class="actions" id="gps-actions" hidden>${button('Usar mi ubicación', 'locate','lugares')}</div><p id="direction-detail" class="muted"></p><p>Google Maps necesita conexión. Si eliges tu ubicación, se comparte con Maps al abrir el enlace.</p><div class="actions"><a class="button primary" id="open-directions" target="_blank" rel="noopener noreferrer">Abrir en Google Maps</a><a class="button" href="${e(mapSearch(destination))}" target="_blank" rel="noopener noreferrer">Ver en el mapa</a>${button('Copiar dirección', 'copy', 'copy', '', id)}</div>`)
   updateDirections()
@@ -388,12 +384,15 @@ root.addEventListener('click', event => {
   const action = target.dataset.action ?? ''
   const id = target.dataset.id ?? ''
   switch (action) {
-    case 'select-day': agendaDate = id; render(); break
+    case 'select-day': setAgendaDate(id); render(); break
     case 'directions': openDirections(id, target.closest<HTMLElement>('[data-activity]')?.dataset.activity); break
     case 'locate': locate(); break
     case 'copy': void copyAddress(id); break
     case 'emergency': go('emergencias'); break
     case 'theme': show('Apariencia', `<form data-form="theme"><label class="field"><span>Tema</span><select name="theme">${option('auto','Sistema',state.theme)}${option('light','Claro',state.theme)}${option('dark','Oscuro',state.theme)}</select></label><button class="button primary" type="submit">Guardar apariencia</button></form>`); break
+    case 'family': commit({ ...state, family: !state.family }, state.family ? 'Modo familia desactivado.' : 'Modo familia activado.'); break
+    case 'explore-city': view.city = id; render(); break
+    case 'explore-category': view.kind = id; render(); break
     case 'place-list': view.tab = 'list'; render(); break
     case 'place-map': view.tab = 'map'; if (view.city === 'sg' || view.city === 'kl') view.mapCity = view.city; render(); break
     case 'favorite': if (save({ ...state, favorites: state.favorites.includes(id) ? state.favorites.filter(value => value !== id) : [...state.favorites, id] })) render(); break
@@ -401,7 +400,7 @@ root.addEventListener('click', event => {
     case 'center-map': view.centered = !view.centered; render(); break
     case 'place-add': {
       const place = getPlace(state,id)
-      if (place) openActivity(app,{title:place.name,date:agendaDate,placeId:id,zone:place.area,address:place.address,lat:place.lat,lon:place.lon,detail:place.description,officialUrl:place.source})
+      if (place) openActivity(app,{title:place.name,date:agendaDate,plan:activePlan(state,agendaDate),placeId:id,zone:place.area,address:place.address,lat:place.lat,lon:place.lon,detail:place.description,officialUrl:place.source})
       break
     }
     case 'event-add': {
@@ -418,9 +417,6 @@ root.addEventListener('click', event => {
     }
     case 'new-place': show('Nuevo lugar', placeForm()); break
     case 'edit-place': show('Editar lugar', placeForm(state.customPlaces.find(item => item.id === id))); break
-    case 'diary-notes': tab = 'notes'; render(); break
-    case 'diary-expenses': tab = 'expenses'; render(); break
-    case 'diary-backup': tab = 'backup'; render(); break
     case 'new-note': openNote(); break
     case 'edit-note': openNote(state.notes.find(item => item.id === id)); break
     case 'print-journal': window.print(); break
@@ -447,6 +443,7 @@ root.addEventListener('change', event => {
   if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return
   const action = target.dataset.action
   if (target.id === 'direction-origin' || target.id === 'direction-mode') { updateDirections(); return }
+  if (action === 'explore-date') { setAgendaDate(target.value); render(); return }
   if (action === 'map-date') { view.date = target.value; view.selection = ''; view.centered = false; const location = getDay(view.date).city; if (location !== 'air') view.mapCity = location; render() }
   if (action === 'map-city' && (target.value === 'sg' || target.value === 'kl')) { view.mapCity = target.value; view.selection = ''; view.centered = false; render() }
   if (action === 'map-filter') { view.mapFilter = target.value; view.centered = false; render() }

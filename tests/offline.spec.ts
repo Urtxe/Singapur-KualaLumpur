@@ -7,10 +7,12 @@ const baseURL = 'http://127.0.0.1:4173/asia-trip/';
 
 test('private files and insurance details restore locally and cache checks work under a subpath', async ({ page, browser }) => {
   await page.goto(`${baseURL}#offline`);
-  await expect(page.getByRole('heading', { name: 'Offline y documentos' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Diagnóstico offline' })).toBeVisible();
   await page.getByRole('button', { name: 'Preparar viaje sin conexión' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Viaje preparado' })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/recursos comprobados en la caché/)).toBeVisible();
+  await page.getByRole('link',{name:'Abrir documentos'}).click();
+  await page.getByText('Seguro de viaje',{exact:true}).click();
 
   await page.getByLabel('Aseguradora').fill('Seguro de prueba');
   await page.getByLabel('Referencia de póliza').fill('POLIZA-123');
@@ -26,6 +28,7 @@ test('private files and insurance details restore locally and cache checks work 
   await page.context().setOffline(true);
   await page.reload();
   await expect(page.getByText('entrada.pdf')).toBeVisible();
+  await page.getByText('Seguro de viaje',{exact:true}).click();
   await expect(page.getByLabel('Referencia de póliza')).toHaveValue('POLIZA-123');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
@@ -33,6 +36,7 @@ test('private files and insurance details restore locally and cache checks work 
   ]);
   expect(download.suggestedFilename()).toBe('entrada.pdf');
 
+  await page.getByText('Copia privada',{exact:true}).click();
   const [backup] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: 'Exportar copia de la bóveda' }).click(),
@@ -50,7 +54,8 @@ test('private files and insurance details restore locally and cache checks work 
   const restoredContext = await browser.newContext();
   try {
     const restoredPage = await restoredContext.newPage();
-    await restoredPage.goto(`${baseURL}#offline`);
+    await restoredPage.goto(`${baseURL}#documentos`);
+    await restoredPage.getByText('Copia privada',{exact:true}).click();
     const importFile = restoredPage.getByText('Importar copia de la bóveda').locator('input');
     await expect(importFile).toBeEnabled();
     await importFile.setInputFiles({
@@ -68,7 +73,7 @@ test('service worker updates wait for user approval and preserve linked receipts
   const source = await readFile(resolve(root, 'sw.js'), 'utf8');
   const version = source.match(/const VERSION = '([^']+)'/)?.[1];
   if (!version) throw new Error('Built service worker has no diagnostic version.');
-  const mime: Record<string, string> = { '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.webmanifest': 'application/manifest+json' };
+  const mime: Record<string, string> = { '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2' };
   let servedWorker = source;
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', 'http://127.0.0.1');
@@ -101,12 +106,14 @@ test('service worker updates wait for user approval and preserve linked receipts
 
     await page.getByRole('button', { name: 'Anotar gasto' }).click();
     const form = page.getByRole('dialog').locator('form');
+    await form.getByText('Más detalles',{exact:true}).click();
     await form.getByLabel('Concepto').fill('Recibo conservado tras actualizar');
     await form.getByLabel('Importe').fill('12.50');
     await form.locator('[name="receiptFile"]').setInputFiles({ name: 'ticket.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\nlocal\n%%EOF') });
     await form.getByRole('button', { name: 'Guardar gasto' }).click();
-    await expect(page.getByText('Recibo conservado tras actualizar')).toBeVisible();
-    await page.goto(`http://127.0.0.1:${address.port}/asia-trip/#offline`);
+    await expect(page.getByText('Recibo conservado tras actualizar').first()).toBeVisible();
+    await page.goto(`http://127.0.0.1:${address.port}/asia-trip/#documentos`);
+    await page.getByText('Seguro de viaje',{exact:true}).click();
     await page.getByLabel('Aseguradora').fill('Seguro persistente');
     await page.getByLabel('Referencia de póliza').fill('POLIZA-SW-2026');
     await page.getByRole('button', { name: 'Guardar datos privados' }).click();
@@ -120,9 +127,9 @@ test('service worker updates wait for user approval and preserve linked receipts
     await expect(update).toBeVisible({ timeout: 20_000 });
     const waitingBeforeApproval = await page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration())?.waiting));
     expect(waitingBeforeApproval).toBe(true);
-    await page.getByRole('link', { name: 'Lugares', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Lugares', exact: true })).toBeVisible();
-    await page.goto(`http://127.0.0.1:${address.port}/asia-trip/#offline`);
+    await page.getByRole('link', { name: 'Explorar', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Explorar', exact: true })).toBeVisible();
+    await page.goto(`http://127.0.0.1:${address.port}/asia-trip/#documentos`);
 
     await Promise.all([page.waitForEvent('load'), update.click()]);
     const installedVersion = await page.evaluate(async () => {
@@ -139,7 +146,7 @@ test('service worker updates wait for user approval and preserve linked receipts
     await expect(page.locator('.vault-list li').filter({ hasText: 'ticket.pdf' })).toBeVisible();
     await expect(page.locator('.vault-list li').filter({ hasText: 'ticket.pdf' }).getByRole('button', { name: 'Eliminar' })).toBeDisabled();
     await page.goto(`http://127.0.0.1:${address.port}/asia-trip/#gastos`);
-    await expect(page.getByText('Recibo conservado tras actualizar')).toBeVisible();
+    await expect(page.getByText('Recibo conservado tras actualizar').first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Recibo' })).toBeVisible();
   } finally {
     await context.close();

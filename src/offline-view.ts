@@ -10,7 +10,13 @@ const formatBytes = (size: number) => size < 1024 * 1024 ? `${Math.ceil(size / 1
 const dateTime = (value: string | null) => value ? new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Todavía no disponible';
 const labels: Record<AttachmentPurpose, string> = { document: 'Reserva o documento', photo: 'Foto del diario', receipt: 'Justificante de gasto' };
 
-export function mountOffline(element: HTMLElement, app: AppContext): void {
+let screenEvents: AbortController | undefined;
+
+export function mountOffline(element: HTMLElement, app: AppContext, page: 'diagnostics' | 'files'): void {
+  screenEvents?.abort();
+  screenEvents = new AbortController();
+  const { signal } = screenEvents;
+  const showDiagnostics = page === 'diagnostics';
   let files: VaultAttachmentMeta[] = [];
   let status = '';
   let busy = false;
@@ -22,14 +28,13 @@ export function mountOffline(element: HTMLElement, app: AppContext): void {
   let backupAt: string | null = null;
 
   element.innerHTML = `<section class="offline-view">
-    <header class="page-heading"><div><p class="eyebrow">ASIA TRIP · USO SIN CONEXIÓN</p><h1>Offline y documentos</h1><p>Diagnóstico de recursos y archivos privados que solo se guardan en este navegador.</p></div></header>
-    <section class="card offline-diagnostics" aria-labelledby="offline-diagnostics-heading"></section>
-    <section class="card private-vault" aria-labelledby="vault-heading"><div class="section-line"><div><h2 id="vault-heading">Reservas, documentos y seguro</h2><p>PDF e imágenes se guardan localmente en IndexedDB. No se suben a ningún servidor ni se incluyen en la copia JSON normal.</p></div><span class="tag">Privado en este dispositivo</span></div>
-      <section class="private-card" aria-labelledby="private-card-heading"><h3 id="private-card-heading">Datos privados del seguro y reservas</h3><p class="muted">Solo se guardan en este dispositivo y no se comparten con los datos del viaje. El almacenamiento local no está cifrado; guarda solo la información que necesites tener a mano.</p><form data-private-card><div class="form-grid"><label class="field"><span>Aseguradora</span><input name="insurer" maxlength="200"></label><label class="field"><span>Teléfono de asistencia</span><input name="assistancePhone" maxlength="100" inputmode="tel"></label><label class="field"><span>Referencia de póliza</span><input name="policyReference" maxlength="200"></label><label class="field"><span>Teléfono de contacto de emergencia</span><input name="emergencyContact" maxlength="100" inputmode="tel"></label></div><label class="field"><span>Nota útil (sin datos médicos)</span><textarea name="note" maxlength="1000"></textarea></label><button class="button" type="submit" disabled>Guardar datos privados</button></form></section>
+    <header class="page-head"><h1>${showDiagnostics ? 'Diagnóstico offline' : 'Documentos'}</h1></header>
+    <section class="card offline-diagnostics" aria-labelledby="offline-diagnostics-heading"${showDiagnostics ? '' : ' hidden'}></section>
+    <section class="card private-vault" aria-labelledby="vault-heading"${showDiagnostics ? ' hidden' : ''}><div class="section-line"><div><h2 id="vault-heading">Reservas y archivos</h2><p>Guarda PDF e imágenes privados en este dispositivo.</p></div></div>
       <label class="field"><span>Guardar archivo desde el teléfono</span><input type="file" accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp" data-vault-action="upload" disabled><small>PDF, JPEG, PNG o WebP. Hasta 25 MB por PDF y 15 MB por imagen. Las imágenes se reducen para ahorrar espacio.</small></label>
       <div data-vault-files></div>
-      <div class="actions"><button class="button" type="button" data-vault-action="export-vault" disabled>Exportar copia de la bóveda</button><label class="button file-button">Importar copia de la bóveda<input class="sr-only" type="file" accept="application/json,.json" data-vault-action="import-vault" disabled></label></div>
-      <p class="muted">Una copia de la bóveda incluye los archivos y estos datos privados en un JSON aparte, sin cifrado. Guárdala en una ubicación privada y segura. El sistema puede eliminar datos locales; conserva una copia en otro lugar. Exportar una copia no borra los archivos guardados.</p>
+      <details class="private-card"><summary>Seguro de viaje</summary><p class="muted">Los datos se guardan localmente, sin cifrar.</p><form data-private-card><div class="form-grid"><label class="field"><span>Aseguradora</span><input name="insurer" maxlength="200"></label><label class="field"><span>Teléfono de asistencia</span><input name="assistancePhone" maxlength="100" inputmode="tel"></label><label class="field"><span>Referencia de póliza</span><input name="policyReference" maxlength="200"></label><label class="field"><span>Teléfono de contacto de emergencia</span><input name="emergencyContact" maxlength="100" inputmode="tel"></label></div><label class="field"><span>Nota útil (sin datos médicos)</span><textarea name="note" maxlength="1000"></textarea></label><button class="button" type="submit" disabled>Guardar datos privados</button></form></details>
+      <details class="private-card"><summary>Copia privada</summary><p class="muted">El archivo incluye documentos y póliza sin cifrar. Guárdalo en un lugar privado.</p><div class="actions"><button class="button" type="button" data-vault-action="export-vault" disabled>Exportar copia de la bóveda</button><label class="button file-button">Importar copia de la bóveda<input class="sr-only" type="file" accept="application/json,.json" data-vault-action="import-vault" disabled></label></div></details>
     </section>
     <p class="storage-warning" role="status" hidden></p>
   </section>`;
@@ -61,16 +66,25 @@ export function mountOffline(element: HTMLElement, app: AppContext): void {
     diagnostics.innerHTML = `<div class="section-line"><h2 id="offline-diagnostics-heading">Estado del dispositivo</h2><button class="button compact" type="button" data-vault-action="refresh">Comprobar</button></div>
         <dl class="offline-facts"><div><dt>Conexión</dt><dd>${navigator.onLine ? 'Con conexión' : 'Sin conexión'}</dd></div><div><dt>Service worker</dt><dd>${'serviceWorker' in navigator ? (navigator.serviceWorker.controller ? 'Controlando esta página' : 'Instalado o pendiente de activar') : 'No disponible en este navegador'}</dd></div><div><dt>Versión instalada</dt><dd>${e(swVersion)}</dd></div><div><dt>Recursos precargados</dt><dd>${e(cacheState)}</dd></div><div><dt>Última actualización</dt><dd>${e(dateTime(updatedAt))}</dd></div><div><dt>Última copia JSON</dt><dd>${e(dateTime(backupAt))}</dd></div><div><dt>Almacenamiento persistente</dt><dd>${e(persistent)}</dd></div><div><dt>Archivos locales</dt><dd>${files.length} · ${formatBytes(used)} de 100 MB</dd></div></dl>
         <div class="actions"><button class="button primary" type="button" data-vault-action="prepare"${busy ? ' disabled' : ''}>${busy ? 'Comprobando…' : 'Preparar viaje sin conexión'}</button><button class="button" type="button" data-vault-action="persist">Solicitar almacenamiento persistente</button></div>
-        <p class="muted">La comprobación confirma que los recursos de la aplicación estén en caché; no comprueba internet de terceros ni contenido externo. El sistema operativo puede borrar la caché o los archivos locales. Guarda copias de seguridad fuera del teléfono.</p>`;
+        <p class="muted">El sistema puede borrar la caché o los archivos locales. Guarda copias fuera del teléfono.</p><a class="text-link" href="#documentos">Abrir documentos</a>`;
     showStatus();
   }
 
   async function refresh() {
     try {
       try { backupAt = localStorage.getItem(backupKey); } catch { backupAt = null; }
-      const [attachments, privateCard] = await Promise.all([listAttachments(), getPrivateCard()]);
-      files = attachments;
-      setPrivateDefaults(privateCard);
+      files = await listAttachments();
+      if (!showDiagnostics) setPrivateDefaults(await getPrivateCard());
+      else await refreshDiagnostics();
+    } catch (error) { status = errorText(error, 'No se pudo consultar el almacenamiento local.'); }
+    if (!ready) {
+      ready = true;
+      element.querySelectorAll<HTMLInputElement | HTMLButtonElement>('[data-vault-action="upload"], [data-vault-action="import-vault"], [data-vault-action="export-vault"], [data-private-card] button[type="submit"]').forEach(control => { control.disabled = false; });
+    }
+    render();
+  }
+
+  async function refreshDiagnostics() {
       swVersion = await serviceWorkerVersion() ?? 'No disponible';
       const [cache, usage, persistence] = await Promise.all([
         checkOfflineCache().catch(() => null),
@@ -81,12 +95,6 @@ export function mountOffline(element: HTMLElement, app: AppContext): void {
       persistent = persistence ? 'Protegido frente a limpieza automática' : navigator.storage ? 'No solicitado o no concedido' : 'No compatible';
       if (usage.quota && usage.quota < usage.used) cacheState = 'Almacenamiento limitado';
       updatedAt = lastServiceWorkerUpdate();
-    } catch (error) { status = errorText(error, 'No se pudo consultar el almacenamiento local.'); }
-    if (!ready) {
-      ready = true;
-      element.querySelectorAll<HTMLInputElement | HTMLButtonElement>('[data-vault-action="upload"], [data-vault-action="import-vault"], [data-vault-action="export-vault"], [data-private-card] button[type="submit"]').forEach(control => { control.disabled = false; });
-    }
-    render();
   }
 
   async function download(id: string) {
@@ -189,10 +197,11 @@ export function mountOffline(element: HTMLElement, app: AppContext): void {
     })();
   });
 
-  window.addEventListener('online', () => { status = 'Conexión disponible.'; render(); });
-  window.addEventListener('offline', () => { status = 'Sin conexión. El contenido precargado sigue disponible.'; render(); });
-  window.addEventListener('asia-trip-sw-update', () => { status = 'Hay una actualización lista. Elige «Actualizar ahora» para instalarla.'; render(); });
-  window.addEventListener('asia-trip-sw-updated', () => { updatedAt = lastServiceWorkerUpdate(); void refresh(); });
+  if (showDiagnostics) {
+    window.addEventListener('online', () => { if (element.isConnected) render(); }, { signal });
+    window.addEventListener('offline', () => { if (element.isConnected) render(); }, { signal });
+    window.addEventListener('asia-trip-sw-updated', () => { if (element.isConnected) void refresh(); }, { signal });
+  }
   render();
   void refresh();
 }

@@ -1,6 +1,6 @@
 {
   "name": "asia-trip",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Agenda y diario offline para un viaje familiar a Singapur y Kuala Lumpur.",
   "private": true,
   "scripts": {

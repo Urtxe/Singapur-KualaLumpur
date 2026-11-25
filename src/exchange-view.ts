@@ -2,10 +2,11 @@ import { createExchangePackage, mergeExchange, parseExchange, previewExchange, s
 import { entities, MAX_BACKUP_BYTES, parseBackup, serializeBackup, stampChanges, STORAGE_KEY, type StorageLike } from './state';
 import type { AppContext } from './app-api';
 import type { State } from './types';
-import { e, option } from './ui';
+import { e, icon } from './ui';
 
 type Screen={pkg:ExchangePackage;choices:MergeChoices;summary:string;fileName:string;selected:Set<string>;backup?:State};
-const modes:Array<[ExchangeSelection['kind'],string]>=[['planning','Planificación'],['expenses','Gastos y efectivo'],['day','Un día'],['notes','Notas'],['favorites','Favoritos y platos'],['completed','Actividades realizadas'],['all','Todo el viaje']];
+const standardModes:Array<[ExchangeSelection['kind'],string]>=[['planning','Planificación'],['expenses','Gastos'],['all','Viaje completo']];
+const advancedModes:Array<[ExchangeSelection['kind'],string]>=[['day','Un día'],['notes','Notas'],['favorites','Favoritos y platos'],['completed','Actividades realizadas']];
 const appStorage=(path=location.pathname):StorageLike=>({getItem:key=>localStorage.getItem(`${key}:${path}`),setItem:(key,value)=>localStorage.setItem(`${key}:${path}`,value),removeItem:key=>localStorage.removeItem(`${key}:${path}`)});
 const placeIds=(app:AppContext)=>{const custom=new Set(app.getState().customPlaces.map(place=>place.id));return app.places().filter(place=>!custom.has(place.id)).map(place=>place.id);};
 const escape=(value:unknown)=>e(String(value??''));
@@ -26,7 +27,7 @@ function readableSummary(pkg: ExchangePackage) {
 }
 function download(name:string,text:string){const url=URL.createObjectURL(new Blob([text],{type:'application/json;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download=name;document.body.append(link);link.click();link.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function selectionFrom(root:HTMLElement):ExchangeSelection {
-  const kind=root.querySelector<HTMLSelectElement>('[name="share-kind"]')?.value as ExchangeSelection['kind']??'all';
+  const kind=root.querySelector<HTMLInputElement>('[name="share-kind"]:checked')?.value as ExchangeSelection['kind']??'planning';
   return kind==='day'?{kind,date:root.querySelector<HTMLInputElement>('[name="share-day"]')?.value??''}:{kind} as ExchangeSelection;
 }
 function summary(pkg:ExchangePackage){
@@ -70,7 +71,21 @@ export function mountExchange(target:HTMLElement,app:AppContext){
     if(summaryField)summaryField.textContent=safeSummary(app.getState(),selection);
     renderPending(target,pending,app.getState());
   };
-  target.innerHTML=`<section class="exchange-shell"><header class="exchange-heading"><div><p class="eyebrow">ENTRE DISPOSITIVOS</p><h1>Intercambiar datos</h1><p>Envía una selección a otro teléfono. Al importar, se combinan los registros y se muestran las ediciones en conflicto.</p></div></header><div class="exchange-grid"><section class="exchange-card"><h2>Preparar un archivo</h2><label class="field"><span>Qué quieres compartir</span><select name="share-kind">${modes.map(([value,label])=>option(value,label,'planning')).join('')}</select></label><label class="field" data-share-day-field hidden><span>Día</span><input type="date" name="share-day" value="${escape(app.selectedDate())}" min="2025-01-01" max="2035-12-31"></label><p class="exchange-summary"></p><div class="actions"><button type="button" class="button primary" data-exchange-action="download-json">Descargar paquete JSON</button><button type="button" class="button" data-exchange-action="share">Compartir archivo</button><button type="button" class="button" data-exchange-action="copy-package">Copiar paquete JSON</button><button type="button" class="button" data-exchange-action="copy-summary">Copiar resumen</button><button type="button" class="button" data-exchange-action="full-backup">Descargar copia completa</button></div><p class="muted">WhatsApp o correo se abren desde el menú de compartir del teléfono. La app no sincroniza datos por internet.</p></section><section class="exchange-card"><h2>Recibir cambios</h2><label class="field"><span>Selecciona una copia o paquete recibido</span><input type="file" accept="application/json,.json" data-exchange-file></label><label class="field"><span>O pega un paquete pequeño</span><textarea data-exchange-paste rows="4" maxlength="1000000" placeholder="Pega aquí el contenido JSON"></textarea></label><button type="button" class="button" data-exchange-action="review-paste">Revisar paquete pegado</button><p class="muted">Las copias de versiones anteriores se reconocen. El contenido se valida antes de mostrar cambios.</p></section></div><div id="exchange-review"></div><section class="exchange-footer"><button type="button" class="button danger" data-exchange-action="undo">Deshacer última importación</button><p class="muted">Se guarda una copia local antes de combinar. El deshacer conserva modificaciones hechas después de importar.</p></section></section>`;
+  const choice=([value,label]:[ExchangeSelection['kind'],string])=>`<label><input type="radio" name="share-kind" value="${value}"${value==='planning'?' checked':''}> ${e(label)}</label>`;
+  target.innerHTML=`<section class="exchange-shell"><header class="page-head"><h1>Intercambiar datos</h1><p>Comparte un archivo para combinar cambios entre teléfonos.</p></header>
+    <div class="exchange-grid">
+      <details class="exchange-card exchange-entry"><summary><span class="more-icon">${icon('compartir')}</span>Enviar mis cambios</summary>
+        <fieldset class="exchange-choices"><legend class="sr-only">Qué quieres compartir</legend>${standardModes.map(choice).join('')}</fieldset>
+        <div class="actions"><button type="button" class="button primary" data-exchange-action="share">Compartir archivo</button><button type="button" class="button" data-exchange-action="download-json">Descargar paquete JSON</button></div>
+        <details class="exchange-advanced"><summary>Más opciones de envío</summary><fieldset class="exchange-choices"><legend class="sr-only">Selección avanzada</legend>${advancedModes.map(choice).join('')}</fieldset><label class="field" data-share-day-field hidden><span>Día</span><input type="date" name="share-day" value="${escape(app.selectedDate())}" min="2025-01-01" max="2035-12-31"></label><p class="exchange-summary"></p><div class="actions"><button type="button" class="button" data-exchange-action="copy-package">Copiar paquete JSON</button><button type="button" class="button" data-exchange-action="copy-summary">Copiar resumen</button></div></details>
+      </details>
+      <details class="exchange-card exchange-entry" data-exchange-receive><summary><span class="more-icon">${icon('offline')}</span>Recibir cambios</summary>
+        <label class="field"><span>Selecciona una copia o paquete recibido</span><input type="file" accept="application/json,.json" data-exchange-file></label>
+        <details class="exchange-advanced"><summary>Pegar un paquete JSON</summary><label class="field"><span>Contenido recibido</span><textarea data-exchange-paste rows="4" maxlength="1000000"></textarea></label><button type="button" class="button" data-exchange-action="review-paste">Revisar paquete pegado</button></details>
+      </details>
+    </div><div id="exchange-review"></div>
+    <details class="exchange-card exchange-advanced"><summary>Copias y recuperación</summary><p class="muted">Puedes restaurar una copia anterior o deshacer la última combinación conservando las ediciones posteriores.</p><div class="actions"><button type="button" class="button" data-exchange-action="full-backup">Descargar copia completa</button><button type="button" class="button danger" data-exchange-action="undo">Deshacer última importación</button></div></details>
+    </section>`;
   const setPackage=(pkg:ExchangePackage,name='paquete.json',backup?:State)=>{pending={pkg,choices:{},summary:summary(pkg),fileName:name,selected:new Set(pkg.records.map(item=>item.key.split(':',1)[0])),backup};render();};
   const readFile=async(file:File)=>{
     if(file.size>MAX_BACKUP_BYTES){app.notify('El archivo supera el límite de 1 MB.');return;}
@@ -79,10 +94,9 @@ export function mountExchange(target:HTMLElement,app:AppContext){
   };
   target.addEventListener('change',event=>{
     const element=event.target;
-    if(element instanceof HTMLInputElement&&element.matches('[data-exchange-file]')&&element.files?.[0])void readFile(element.files[0]);
+    if(element instanceof HTMLInputElement&&element.matches('[data-exchange-file]')&&element.files?.[0])void readFile(element.files[0]).finally(()=>{element.value='';});
     if(element instanceof HTMLInputElement&&element.matches('[data-import-kind]')&&pending){const kind=element.dataset.importKind??'';if(element.checked)pending.selected.add(kind);else pending.selected.delete(kind);render();}
-    if(element instanceof HTMLSelectElement&&element.name==='share-kind')render();
-    if(element instanceof HTMLInputElement&&element.name==='share-day')app.setSelectedDate(element.value);
+    if(element instanceof HTMLInputElement&&element.name==='share-kind')render();
   });
   target.addEventListener('click',async event=>{
     if(!(event.target instanceof Element))return;

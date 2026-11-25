@@ -14,6 +14,7 @@ const contentTypes = {
   '.svg': 'image/svg+xml',
   '.webp': 'image/webp',
   '.webmanifest': 'application/manifest+json',
+  '.woff2': 'font/woff2',
 };
 
 if (!existsSync(resolve(root, 'index.html'))) {

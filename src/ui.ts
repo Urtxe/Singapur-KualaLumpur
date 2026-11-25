@@ -1,13 +1,13 @@
 import { days, places } from './data'
 import { guidePlaces } from './guide-data'
 import { asiaDate, escapeHTML } from './state'
-import type { Day, Place, State } from './types'
+import type { Activity, Day, Place, State } from './types'
 
-export const primaryRoutes = ['inicio', 'agenda', 'lugares', 'transporte', 'diario', 'viaje'] as const
-export const extraRoutes = ['eventos', 'gastronomia', 'gastos', 'compartir', 'offline', 'emergencias'] as const
+export const primaryRoutes = ['inicio', 'agenda', 'lugares', 'gastos', 'mas'] as const
+export const extraRoutes = ['eventos', 'gastronomia', 'transporte', 'viaje', 'compartir', 'diario', 'preparativos', 'offline', 'documentos', 'emergencias'] as const
 export const routes = [...primaryRoutes, ...extraRoutes] as const
 export type Route = typeof routes[number]
-export const labels: Record<Route, string> = { inicio: 'Inicio', agenda: 'Agenda', lugares: 'Lugares', transporte: 'Transporte', diario: 'Diario', viaje: 'Viaje', eventos: 'Agenda local', gastronomia: 'Gastronomía', gastos: 'Gastos', compartir: 'Compartir', offline: 'Offline y documentos', emergencias: 'Emergencias' }
+export const labels: Record<Route, string> = { inicio: 'Hoy', agenda: 'Planes', lugares: 'Explorar', transporte: 'Transporte', diario: 'Diario', viaje: 'Vuelos y hoteles', mas: 'Más', preparativos: 'Preparativos', eventos: 'Agenda local', gastronomia: 'Gastronomía', gastos: 'Gastos', compartir: 'Compartir e importar', offline: 'Diagnóstico offline', documentos: 'Documentos', emergencias: 'Emergencias' }
 export const city = { sg: 'Singapur', kl: 'Kuala Lumpur', air: 'En ruta' }
 export const kind = { must: 'Imprescindible', food: 'Comida', optional: 'Opcional', hotel: 'Hotel', airport: 'Aeropuerto', station: 'Estación', medical: 'Centro médico' }
 export const e = (value: unknown) => escapeHTML(String(value ?? ''))
@@ -45,6 +45,12 @@ const paths: Record<string, string> = {
   offline: '<path d="M12 3v12m-4-4 4 4 4-4M4 17v3h16v-3"/>',
   emergencias: '<path d="m12 3 8 3v5c0 4-3 7-8 10-5-3-8-6-8-10V6l8-3zM9 12h6m-3-3v6"/>',
   photo: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m4 17 4-4 3 3 4-5 5 6"/>',
+  mas: '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
+  settings: '<path d="M4 7h16M4 12h16M4 17h16M9 5v4m6 1v4m-5 1v4"/>',
+  document: '<path d="M7 3h7l4 4v14H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm7 0v5h4m-9 5h5m-5 4h5"/>',
+  preparativos: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2m-6 9 2 2 4-5"/>',
+  navigation: '<path d="m21 3-7 18-3.5-7.5L3 10z"/>',
+  chevron: '<path d="m9 5 7 7-7 7"/>',
 }
 export const icon = (name: string, cls = '') => `<svg class="${cls}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] ?? paths.compass}</svg>`
 export const dateShort = (date: string) => `${Number(date.slice(-2))} dic`
@@ -68,6 +74,39 @@ export const getDay = (date: string) => days.find(day => day.date === date) ?? d
 export const cityHotel = (location: Place['city']) => location === 'sg' ? 'mi-rochor' : 'star-residence'
 export function activeDay(now: Date): Day | undefined { return days.find(day => day.date === asiaDate(now)) }
 export function planningDay(now: Date) { return activeDay(now)?.date ?? '2026-12-04' }
+
+export function dayPreference(state: State, date: string): { preferences: string[]; active: 'A' | 'B' } {
+  const value = state.dayPreferences[date]
+  return value && !Array.isArray(value) ? value : { preferences: value ?? [], active: 'A' }
+}
+
+export function withDayPreference(state: State, date: string, update: Partial<ReturnType<typeof dayPreference>>): State {
+  const { active, preferences } = { ...dayPreference(state, date), ...update }
+  const dayPreferences = { ...state.dayPreferences }
+  if (active === 'B') dayPreferences[date] = { preferences, active }
+  else if (preferences.length) dayPreferences[date] = preferences
+  else delete dayPreferences[date]
+  return { ...state, dayPreferences }
+}
+
+export const activePlan = (state: State, date: string) => dayPreference(state, date).active
+
+export function activitiesForPlan(state: State, date: string, plan: 'A' | 'B'): Activity[] {
+  const entries = state.activities.filter(item => item.date === date && !item.archived)
+  const ordered = entries.filter(item => (item.plan ?? 'A') === plan)
+  if (plan === 'A') return ordered
+  const common = entries.filter(item => item.plan !== 'B' && (item.fixed || item.flight))
+  for (const item of common) {
+    const firstLater = ordered.findIndex(other => !other.time || Boolean(item.time && other.time > item.time))
+    ordered.splice(firstLater < 0 ? ordered.length : firstLater, 0, item)
+  }
+  return ordered
+}
+
+export function activeActivities(state: State, date?: string): Activity[] {
+  if (date) return activitiesForPlan(state, date, activePlan(state, date))
+  return [...new Set(state.activities.map(item => item.date).filter(Boolean))].flatMap(day => activeActivities(state, day))
+}
 export const tripStart = Date.parse('2026-12-03T11:55:00+01:00')
 export function currentHotel(state: State, now: Date) {
   const date = asiaDate(now)

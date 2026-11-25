@@ -14,7 +14,6 @@ export function journalView(state: State) {
     byDay.set(note.date,group)
   }
   return `${title('Diario', 'Recuerdos y fotos para volver a los mejores momentos.', button('Añadir nota','new-note','plus','primary'))}
-  <div class="segmented journal-nav" role="group" aria-label="Sección del diario"><button type="button" aria-pressed="true" data-action="diary-notes">Notas</button><button type="button" aria-pressed="false" data-action="diary-expenses">Gastos</button><button type="button" aria-pressed="false" data-action="diary-backup">Copias</button></div>
   ${[...byDay].map(([date,notes]) => `<section class="journal-day"><h2>${e(dateLong(date))}</h2><div class="reference-grid">${notes.map(note => {
     const location = getPlace(state,note.placeId)
     const activity = state.activities.find(item => item.id === note.activityId) ?? state.trash.find(item => item.id === note.activityId)

@@ -12,6 +12,8 @@ export interface AppContext {
   places(): Place[];
   selectedDate(): string;
   setSelectedDate(date: string): void;
+  todayPreview(): string | undefined;
+  setTodayPreview(date?: string): void;
   quickSpend(activityId?: string): void;
   quickNote(activityId?: string): void;
 }

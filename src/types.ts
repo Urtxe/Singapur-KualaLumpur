@@ -92,6 +92,8 @@ export type Expense = {
   people?: number;
   rate?: number | null;
   eurMinor?: number | null;
+  /** Exact EUR amount charged by the bank, when known. */
+  bankEurMinor?: number | null;
   activityId?: string;
   receiptId?: string;
   notes?: string;
@@ -114,6 +116,7 @@ export type CashMovement = {
   amountMinor: number;
   feeMinor: number;
   feeEurMinor: number | null;
+  rate?: number | null;
   eurMinor?: number | null;
   notes: string;
 };
@@ -129,6 +132,7 @@ export type RecordRevision = {
 };
 
 export type SyncMeta = { deviceId: string; records: Record<string, RecordRevision> };
+export type DayPreference = string[] | { preferences: string[]; active: 'B' };
 
 export type State = {
   version: 2;
@@ -139,6 +143,7 @@ export type State = {
   expenses: Expense[];
   budget: number | null;
   rates: { SGD: number | null; MYR: number | null };
+  rateDates?: { SGD: string | null; MYR: string | null };
   checks: string[];
   theme: 'auto' | 'light' | 'dark';
   family: boolean;
@@ -146,6 +151,6 @@ export type State = {
   budgets: Budget[];
   trash: Activity[];
   triedDishes: string[];
-  dayPreferences: Record<string, string[]>;
+  dayPreferences: Record<string, DayPreference>;
   meta: SyncMeta;
 };
