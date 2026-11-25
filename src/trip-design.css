@@ -125,6 +125,7 @@ summary { font-weight: 750; }
 }
 @media (min-width: 1010px) {
   .topbar { justify-content: flex-end; min-height: 56px; }
+  .navigation { grid-template-columns: 1fr; }
   .navigation a { font-size: .88rem; }
   .today-next, .today-wallet, .today-list { padding: 19px 22px; }
 }

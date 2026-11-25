@@ -13,7 +13,7 @@ test('logs and edits a cash expense without counting an ATM withdrawal as trip s
   await dialog.getByLabel('Importe').fill('12.50')
   await dialog.getByLabel('Moneda').selectOption('SGD')
   await dialog.getByRole('button', { name: 'Restaurantes' }).click()
-  await dialog.getByLabel('Método').selectOption('cash')
+  await dialog.getByLabel('Pago').selectOption('cash')
   await dialog.getByText('Más detalles').click()
   await dialog.getByLabel('Cambio aplicado · EUR por unidad').fill('0.68')
   await dialog.getByRole('button', { name: 'Guardar gasto' }).click()

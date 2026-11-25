@@ -32,7 +32,7 @@ test.describe('Planificador y HOY', () => {
     await expect(flight).toHaveAttribute('draggable', 'false')
     await expect(flight.getByRole('button', { name: 'Editar', exact: true })).toHaveCount(0)
     await flight.getByRole('button', { name: 'Más opciones de Llegada, inmigración y equipaje' }).click()
-    await expect(flight.getByText(/reserva o actividad realizada está protegida/)).toBeVisible()
+    await expect(flight.locator('.pl-protected-note')).toContainText('está protegida')
   })
 
   test('permite alternar Plan A/B y editar una alternativa sin alterar Plan A', async ({ page }) => {
@@ -44,7 +44,8 @@ test.describe('Planificador y HOY', () => {
     await expect(original).toBeVisible()
     await original.getByRole('button', { name: /Más opciones de/ }).click()
     await original.getByRole('button', { name: 'Editar', exact: true }).click()
-    await page.getByRole('dialog').locator('details > summary').click()
+    const advanced = page.getByRole('dialog').locator('.pl-advanced')
+    if ((await advanced.getAttribute('open')) === null) await advanced.locator('summary').click()
     await page.getByRole('dialog').locator('select[name="plan"]').selectOption('B')
     await page.getByRole('dialog').getByRole('button', { name: 'Guardar actividad' }).click()
 
