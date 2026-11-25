@@ -73,7 +73,6 @@ export function financeTotals(state: State) {
   return { total, prepaid, destination, pending, pendingByCurrency, byCity, byCategory, byDay, byMethod }
 }
 
-const daysBetween = (start: string, end: string) => Math.max(0, Math.floor((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86_400_000) + 1)
 const destinationDates = days.filter(day => day.city !== 'air').map(day => day.date).sort()
 const localDate = (now: Date) => `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 const singaporeDate = (now: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Singapore', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)

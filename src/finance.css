@@ -25,7 +25,7 @@
 .quick-expense { display: grid; gap: .8rem; }
 .quick-expense-main { display: grid; grid-template-columns: minmax(8rem,1fr) minmax(7rem,.8fr); gap: .65rem; }
 .quick-expense-main .field:nth-child(3) { grid-column: 1 / -1; }
-.quick-expense-main .field:nth-child(4) { grid-column: 1 / -1; }
+.quick-expense-main > .field:last-child { grid-column: 1 / -1; }
 .quick-expense-main .field:first-child input { min-height: 3.3rem; font-size: 1.65rem; font-weight: 700; }
 .quick-categories { display: flex; gap: .35rem; flex-wrap: wrap; grid-column: 1 / -1; }
 .quick-categories .finance-chip { min-height: 38px; padding: .35rem .6rem; }
