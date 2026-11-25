@@ -35,12 +35,17 @@ function observe(reg: ServiceWorkerRegistration) {
   registration = reg;
   if (observedRegistrations.has(reg)) return;
   observedRegistrations.add(reg);
-  if (reg.waiting && navigator.serviceWorker.controller) updatePrompt(reg.waiting);
+  const announceWaiting = () => {
+    const worker = reg.waiting;
+    const controller = navigator.serviceWorker.controller;
+    if (worker && controller && worker !== controller) updatePrompt(worker);
+  };
+  announceWaiting();
   reg.addEventListener('updatefound', () => {
     const worker = reg.installing;
     if (!worker) return;
     worker.addEventListener('statechange', () => {
-      if (worker.state === 'installed' && navigator.serviceWorker.controller) updatePrompt(worker);
+      if (worker.state === 'installed') announceWaiting();
     });
   });
 }
@@ -55,7 +60,11 @@ export function registerSW(): void {
     if (registrationPromise) return registrationPromise;
     registrationPromise = (async () => {
       const existing = registration ?? await navigator.serviceWorker.getRegistration(scopeURL).catch(() => undefined);
-      if (existing) { observe(existing); return existing; }
+      if (existing) {
+        observe(existing);
+        if (existing.active) void existing.update().catch(() => undefined);
+        return existing;
+      }
       const created = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { updateViaCache: 'none' });
       observe(created);
       return created;
@@ -66,7 +75,6 @@ export function registerSW(): void {
     }).finally(() => { registrationPromise = undefined; });
     const current = await registrationPromise;
     if (!current || !navigator.onLine) return;
-    void current.update().catch(() => undefined);
     if (!updateTimer) updateTimer = window.setInterval(() => {
       if (navigator.onLine && registration) void registration.update().catch(() => undefined);
     }, 6 * 60 * 60 * 1000);

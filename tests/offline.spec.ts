@@ -90,12 +90,14 @@ test('service worker updates wait for user approval and preserve linked receipts
   await new Promise<void>((resolveListen, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolveListen); });
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('Could not start the isolated update test server.');
-  const context = await browser.newContext();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
   const page = await context.newPage();
   try {
     await page.goto(`http://127.0.0.1:${address.port}/asia-trip/#gastos`);
     await page.evaluate(async () => { await navigator.serviceWorker.ready; });
     await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
+    const update = page.getByRole('button', { name: 'Actualizar ahora' });
+    await expect(update).toBeHidden();
 
     await page.getByRole('button', { name: 'Anotar gasto' }).click();
     const form = page.getByRole('dialog').locator('form');
@@ -115,10 +117,12 @@ test('service worker updates wait for user approval and preserve linked receipts
       .replace(`const CACHE_NAME = CACHE_PREFIX + '${version}'`, "const CACHE_NAME = CACHE_PREFIX + 'e2e-update'");
     servedWorker = `${updated}\n// Explicit update prompt check\n`;
     await page.evaluate(async () => { await (await navigator.serviceWorker.getRegistration())?.update(); });
-    const update = page.getByRole('button', { name: 'Actualizar ahora' });
     await expect(update).toBeVisible({ timeout: 20_000 });
     const waitingBeforeApproval = await page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration())?.waiting));
     expect(waitingBeforeApproval).toBe(true);
+    await page.getByRole('link', { name: 'Lugares', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Lugares', exact: true })).toBeVisible();
+    await page.goto(`http://127.0.0.1:${address.port}/asia-trip/#offline`);
 
     await Promise.all([page.waitForEvent('load'), update.click()]);
     const installedVersion = await page.evaluate(async () => {
