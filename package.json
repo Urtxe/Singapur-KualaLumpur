@@ -1,12 +1,13 @@
 {
   "name": "asia-trip",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Agenda y diario offline para un viaje familiar a Singapur y Kuala Lumpur.",
   "private": true,
   "scripts": {
-    "test": "node --import tsx --test tests/state.test.ts",
+    "test": "node --import tsx --test tests/*.test.ts",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "lint": "eslint .",
     "test:e2e": "playwright test",

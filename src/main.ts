@@ -1,35 +1,86 @@
 import './style.css'
-import { baseActivities, checklist, places } from './data'
-import { activityForm, budgetForm, dialogContent, expenseForm, noteForm, placeForm } from './dialogs'
-import { asiaDate, convertAmount, createInitialState, loadState, MAX_BACKUP_BYTES, parseBackup, saveState, serializeBackup, toSafeCSVCell } from './state'
+import './premium.css'
+import './planner.css'
+import './finance.css'
+import './offline.css'
+import { alerts, baseActivities } from './data'
+import type { AppContext } from './app-api'
+import { dialogContent, noteForm, placeForm } from './dialogs'
+import { asiaDate, createInitialState, loadState, saveState, stampChanges, STORAGE_KEY } from './state'
 import { registerSW } from './sw-register'
-import type { Activity, Currency, Expense, Note, Place, State } from './types'
-import { button, cityHotel, dateLong, directions, e, getDay, getPlace, icon, labels, mapSearch, offlineText, option, placeQuery, planningDay, routes, statuses, type Route } from './ui'
-import { agenda, diary, emergencyLinks, home, placeList, placeView, transportView, travel, type PlaceView } from './views'
+import { mountPlanner, mountToday, openActivity } from './planner'
+import { mountFinance, openExpense } from './finance'
+import { mountExchange } from './exchange-view'
+import { mountOffline } from './offline-view'
+import { getAttachment, removeAttachment, storeAttachment } from './vault'
+import { eventFilters, eventSeed, eventsView, foodFilters, foodResults, gastronomy, safetyView } from './guide-view'
+import { journalView } from './journal'
+import type { Activity, Note, Place, State } from './types'
+import { allPlaces, button, cityHotel, currentHotel, dateLong, directions, e, extraRoutes, getDay, getPlace, icon, labels, mapSearch, offlineText, option, placeQuery, planningDay, primaryRoutes, publicPlaces, routes, tripStart, type Route } from './ui'
+import { placeList, placeView, transportView, travel, type PlaceView } from './views'
 
 const root = document.querySelector<HTMLElement>('#app')!
-root.innerHTML = `<a class="skip" href="#content">Saltar al contenido</a><aside class="sidebar"><a class="brand" href="#inicio"><span class="brand-icon">${icon('compass')}</span><span><strong>Asia Trip</strong><small>Singapur · Kuala Lumpur</small></span></a><nav class="navigation" aria-label="Navegación principal">${routes.map(item => `<a href="#${item}" data-route="${item}">${icon(item)}<span>${labels[item]}</span></a>`).join('')}</nav><div class="side-foot"><div class="route-card"><small>DICIEMBRE 2026</small><div><span>BIO</span><span>SIN</span><span>KUL</span></div></div></div></aside><div class="workspace"><header class="topbar"><a class="mobile-brand" href="#inicio"><span class="brand-icon">${icon('compass')}</span><strong>Asia Trip</strong></a><div class="top-date">${icon('agenda')} <span id="asia-today"></span></div><div class="top-actions"><span id="offline-status" class="offline-status" role="status">${icon('wifi')} <span></span></span><button class="icon-button theme-button" type="button" aria-label="Preferencias de apariencia" data-action="theme">${icon('moon')}</button></div></header><main id="content" tabindex="-1"></main></div><dialog id="modal" aria-labelledby="dialog-title"></dialog><div class="toast" role="status" aria-live="polite" hidden></div>`
+const navLink = (item: Route) => `<a href="#${item}" data-route="${item}">${icon(item)}<span>${labels[item]}</span></a>`
+root.innerHTML = `
+  <a class="skip" href="#content">Saltar al contenido</a>
+  <aside class="sidebar">
+    <a class="brand" href="#inicio"><span class="brand-icon">${icon('compass')}</span><span><strong>Asia Trip</strong><small>Singapur · Kuala Lumpur</small></span></a>
+    <nav class="navigation" aria-label="Navegación principal">${primaryRoutes.map(navLink).join('')}</nav>
+    <nav class="side-navigation" aria-label="Herramientas del viaje">${extraRoutes.map(navLink).join('')}</nav>
+    <div class="side-foot"><div class="route-card"><small>DICIEMBRE 2026</small><div><span>BIO</span><span>SIN</span><span>KUL</span></div></div></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><a class="mobile-brand" href="#inicio"><span class="brand-icon">${icon('compass')}</span><strong>Asia Trip</strong></a>
+      <div class="top-date">${icon('agenda')} <span id="asia-today"></span></div>
+      <div class="top-actions"><a href="#offline" id="offline-status" class="offline-status" aria-label="Diagnóstico offline">${icon('wifi')} <span role="status"></span></a>
+        <button class="icon-button theme-button" type="button" aria-label="Preferencias de apariencia" data-action="theme">${icon('moon')}</button></div></header>
+    <main id="content" tabindex="-1"></main>
+  </div>
+  <dialog id="modal" aria-labelledby="dialog-title"></dialog><div class="toast" role="status" aria-live="polite" hidden></div>`
 
 const content = document.querySelector<HTMLElement>('#content')!
 const modal = document.querySelector<HTMLDialogElement>('#modal')!
 const toast = document.querySelector<HTMLElement>('.toast')!
-const knownPlaceIds = places.map(p => p.id)
+const knownPlaceIds = publicPlaces.map(p => p.id)
 const appPath = new URL(import.meta.env.BASE_URL, location.href).pathname
 const storage = {
   getItem: (key: string) => localStorage.getItem(`${key}:${appPath}`),
   setItem: (key: string, value: string) => localStorage.setItem(`${key}:${appPath}`, value),
+  removeItem: (key: string) => localStorage.removeItem(`${key}:${appPath}`),
 }
 const baseline = createInitialState(baseActivities, [])
 const stored = loadState(storage, knownPlaceIds)
 let state = stored.state ?? baseline
+if (stored.status === 'empty' || stored.migrated) saveState(state, storage, knownPlaceIds)
+function diskSnapshot() {
+  try { return storage.getItem(STORAGE_KEY) } catch { return null }
+}
+let lastSaved = diskSnapshot()
 let isCorrupt = stored.status === 'corrupt'
 let storageWarning = stored.status === 'unavailable' ? 'El almacenamiento local no está disponible. Los cambios requieren un navegador con almacenamiento habilitado.' : isCorrupt ? 'La copia local no se pudo leer. Puedes restaurar una copia JSON desde el diario.' : ''
 let agendaDate = planningDay(new Date())
 let tab: 'notes' | 'expenses' | 'backup' = 'notes'
-const view: PlaceView = { tab: 'list', date: agendaDate, query: '', city: 'all', kind: 'all', selection: '' }
+const view: PlaceView = { tab: 'list', date: agendaDate, query: '', city: 'all', kind: 'all', selection: '', mapCity: 'sg', mapFilter: 'day', centered: false }
 let timer = 0
 let returnFocus: HTMLElement | null = null
 let routeContext: { destination: Place; hotel?: Place; previous?: Place; coords: string; activity?: Activity } | undefined
+const journalImages = new Set<string>()
+
+const app: AppContext = {
+  getState: () => state,
+  commit: (next, message) => commit(next, message),
+  applyImported: (next, message) => commit(next, message, true),
+  render: () => render(),
+  notify: announce,
+  openDialog: show,
+  navigate: path => { if (routes.includes(path as Route)) go(path as Route) },
+  directions: openDirections,
+  places: () => allPlaces(state),
+  selectedDate: () => agendaDate,
+  setSelectedDate: date => { agendaDate = date },
+  quickSpend: activityId => openExpense(app, activityId),
+  quickNote: activityId => openNote(undefined, activityId),
+}
 
 function route(): Route {
   const candidate = location.hash.slice(1) as Route
@@ -72,8 +123,23 @@ function render(focusPage = false) {
   const focused = document.activeElement instanceof HTMLElement && content.contains(document.activeElement) ? document.activeElement : null
   const focusTarget = actionSelector(focused)
   const open = [...content.querySelectorAll<HTMLDetailsElement>('details[open]')].map(details => details.closest<HTMLElement>('[data-activity], [data-place]')?.dataset).filter(Boolean)
-  const screen = { inicio: () => home(state, now), agenda: () => agenda(state, agendaDate, now), lugares: () => placeView(state, view), transporte: transportView, diario: () => diary(state, tab), viaje: () => travel(state) }
-  content.innerHTML = (storageWarning ? `<div class="storage-warning" role="alert">${e(storageWarning)}</div>` : '') + screen[section]()
+  for (const url of journalImages) URL.revokeObjectURL(url)
+  journalImages.clear()
+  const screens: Partial<Record<Route, () => string>> = {
+    lugares: () => placeView(state, view), transporte: () => transportView(state),
+    viaje: () => travel(state, travelHub()), eventos: eventsView, gastronomia: () => gastronomy(state), emergencias: () => safetyView(state),
+  }
+  const mounted: Partial<Record<Route, (element: HTMLElement, ctx: AppContext) => void>> = {
+    inicio: mountToday, agenda: mountPlanner, gastos: mountFinance, compartir: mountExchange, offline: mountOffline,
+  }
+  const pane = '<div id="route-body"></div>'
+  const journal = section === 'diario' ? journalTabs() + (tab === 'notes' ? journalView(state) : pane) : ''
+  content.innerHTML = (storageWarning ? `<div class="storage-warning" role="alert">${e(storageWarning)}</div>` : '') +
+    (section === 'diario' ? journal : section === 'inicio' ? pane + homeAnnex(now) : screens[section]?.() ?? pane)
+  const body = content.querySelector<HTMLElement>('#route-body')
+  if (body && section === 'diario') (tab === 'expenses' ? mountFinance : mountExchange)(body,app)
+  else if (body) mounted[section]?.(body,app)
+  if (section === 'diario' && tab === 'notes') void loadJournalPhotos()
   for (const entry of open) {
     const id = entry?.activity ?? entry?.place
     if (!id) continue
@@ -93,15 +159,111 @@ function go(to: Route) {
   else location.hash = to
 }
 
-function save(next: State, restore = false) {
+function travelHub() {
+  return `<nav aria-label="Herramientas de viaje" class="travel-tools">${extraRoutes.map(route =>
+    `<a href="#${route}"><span class="quick-icon">${icon(route)}</span><b>${labels[route]}</b></a>`).join('')}</nav>`
+}
+
+function homeAnnex(now: Date) {
+  const hotel = currentHotel(state,now)
+  const remaining = Math.max(0,Math.ceil((tripStart - now.valueOf()) / 60_000))
+  const done = state.activities.filter(item=>!item.archived && item.plan !== 'B' && item.status === 'done').length
+  const total = state.activities.filter(item=>!item.archived && item.plan !== 'B' && item.date).length
+  return `<section class="home-extras" aria-label="Accesos de viaje"><div class="actions">
+    ${hotel ? button('Volver al hotel','directions','hotel','',hotel.id) : ''}<a class="button" href="#emergencias">${icon('emergencias')} Emergencias</a>${state.family ? '' : `<a class="button" href="#compartir">${icon('compartir')} Compartir</a>`}</div>
+    ${state.family ? '</section>' : `${remaining ? `<div class="trip-progress"><span>${icon('plane')} Salida desde Bilbao</span><strong>${Math.floor(remaining / 1440)} días · ${Math.floor(remaining % 1440 / 60)} horas</strong></div>` : ''}
+    <div class="trip-progress"><span>${icon('check')} Avance del plan</span><strong>${done} de ${total} actividades</strong></div>
+    <details class="card"><summary>Avisos generales del viaje</summary><div class="travel-alerts">${alerts.map(alert=>`<div class="notice"><span class="notice-icon">${icon('alert')}</span><div><h3>${e(alert.title)}</h3><p>${e(alert.detail)}</p></div></div>`).join('')}</div></details>
+  </section>`}`
+}
+
+const activityGroup = (item: Activity) => `${item.date}:${item.plan ?? 'A'}`
+
+function groupedActivities(items: Activity[]) {
+  const result = new Map<string,Activity[]>()
+  for (const item of items) {
+    const key = activityGroup(item)
+    const group = result.get(key) ?? []
+    group.push(item)
+    result.set(key,group)
+  }
+  return result
+}
+
+function stampActivityOrder(before: Activity[], after: Activity[]) {
+  if (before === after) return after
+  const previous = groupedActivities(before)
+  const order = new Map<string,number>()
+  for (const [key, group] of groupedActivities(after)) {
+    const old = previous.get(key) ?? []
+    if (old.length === group.length && group.every((item,index) => item.id === old[index].id)) continue
+    group.forEach((item,index)=>order.set(item.id,index))
+  }
+  return after.map(item => order.has(item.id) ? { ...item,order:order.get(item.id) } : item)
+}
+
+function applyActivityOrder(items: Activity[]) {
+  const groups = groupedActivities(items)
+  for (const group of groups.values()) group.sort((a,b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER))
+  const nextIndex = new Map<string,number>()
+  return items.map(item => {
+    const key = activityGroup(item)
+    const index = nextIndex.get(key) ?? 0
+    nextIndex.set(key,index + 1)
+    return groups.get(key)![index]
+  })
+}
+
+function journalTabs() {
+  return tab === 'notes' ? '' : `<div class="segmented journal-nav" role="group" aria-label="Sección del diario">
+    <button type="button" data-action="diary-notes" aria-pressed="false">Notas</button>
+    <button type="button" data-action="diary-expenses" aria-pressed="${tab === 'expenses'}">Gastos</button>
+    <button type="button" data-action="diary-backup" aria-pressed="${tab === 'backup'}">Copias</button></div>`
+}
+
+async function loadJournalPhotos() {
+  for (const image of content.querySelectorAll<HTMLImageElement>('img[data-photo]')) {
+    try {
+      const record = await getAttachment(image.dataset.photo!)
+      if (!record || !image.isConnected || !record.type.startsWith('image/')) continue
+      const url = URL.createObjectURL(record.blob)
+      journalImages.add(url)
+      image.src = url
+      image.hidden = false
+    } catch { /* El diario de texto sigue disponible. */ }
+  }
+}
+
+function save(next: State, restore = false, imported = false) {
+  const disk = diskSnapshot()
+  if (disk !== lastSaved) {
+    const latest = loadState(storage, knownPlaceIds)
+    if (latest.state) {
+      state = latest.state
+      lastSaved = disk
+      render()
+      announce('Los datos cambiaron en otra pestaña. Revisa la versión actual antes de volver a guardar.')
+      return false
+    }
+  }
   if (isCorrupt && !restore && !confirm('La copia local está dañada. ¿Quieres sustituirla con el plan de este dispositivo?')) return false
-  if (!saveState(next, storage, knownPlaceIds)) {
+  const updated = imported ? { ...next, activities:applyActivityOrder(next.activities) } :
+    stampChanges(state,{ ...next, activities:stampActivityOrder(state.activities,next.activities) })
+  if (!saveState(updated, storage, knownPlaceIds)) {
     announce('No se pudo guardar. Revisa los campos o el espacio de almacenamiento. Los datos anteriores se conservan.')
     return false
   }
-  state = next
+  state = updated
+  lastSaved = diskSnapshot()
   isCorrupt = false
   storageWarning = ''
+  return true
+}
+
+function commit(next: State, message?: string, imported = false) {
+  if (!save(next, imported, imported)) return false
+  render()
+  if (message) announce(message)
   return true
 }
 
@@ -109,6 +271,7 @@ function show(title: string, html: string) {
   if (!modal.open) returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
   modal.innerHTML = dialogContent(title, `<p class="modal-feedback storage-warning" role="status" hidden></p>${html}`)
   if (!modal.open) modal.showModal()
+  return modal
 }
 
 function finish(message: string) {
@@ -120,12 +283,15 @@ function finish(message: string) {
 }
 
 function openDirections(id: string, activityId?: string) {
-  const destination = getPlace(state, id)
+  const act = state.activities.find(item => item.id === activityId)
+  const activityCity = act && getDay(act.date).city
+  const destination = getPlace(state, id) ?? (act?.address ? { id: act.id, name: act.title, city: activityCity === 'kl' ? 'kl' : 'sg', area: act.zone,
+    kind: 'optional' as const, address: act.address, lat: act.lat ?? null, lon: act.lon ?? null, description: act.detail, photo: '', access: act.access ?? '', shade: '', price: '' } : undefined)
   if (!destination) return
   const now = new Date()
   const planned = state.activities.filter(item => item.placeId === id).sort((a,b) => a.date.localeCompare(b.date))
   const section = route()
-  const date = section === 'agenda' ? agendaDate : section === 'lugares' && view.tab === 'map' ? view.date : planned.find(item => item.date >= asiaDate(now))?.date ?? planned[0]?.date ?? agendaDate
+  const date = act?.date || (section === 'agenda' ? agendaDate : section === 'lugares' && view.tab === 'map' ? view.date : planned.find(item => item.date >= asiaDate(now))?.date ?? planned[0]?.date ?? agendaDate)
   const visits = state.activities.filter(activity => activity.date === date)
   const index = visits.findIndex(item => activityId ? item.id === activityId : item.placeId === id)
   const prior = index > 0 ? visits.slice(0, index).reverse().find(item => item.status !== 'skipped' && item.placeId && item.placeId !== id) : undefined
@@ -167,63 +333,48 @@ function locate() {
   }, { timeout: 12000, maximumAge: 0 })
 }
 
-function download(filename: string, body: string, mime: string) {
-  const link = document.createElement('a')
-  const url = URL.createObjectURL(new Blob([body], { type: mime }))
-  link.href = url
-  link.download = filename
-  document.body.append(link)
-  link.click()
-  link.remove()
-  window.setTimeout(() => URL.revokeObjectURL(url), 2000)
-}
-
-function exportCSV() {
-  const rows = [['Fecha', 'Concepto', 'Categoría', 'Importe original', 'Moneda', 'EUR por unidad (manual)', 'Importe EUR'], ...state.expenses.map(exp => [exp.date, exp.title, exp.category, exp.amount.toFixed(2), exp.currency, exp.currency === 'EUR' ? 1 : state.rates[exp.currency] ?? '', convertAmount(exp.amount, exp.currency, state.rates)?.toFixed(2) ?? ''])]
-  download('asia-trip-gastos.csv', '\uFEFF' + rows.map(row => row.map(toSafeCSVCell).join(',')).join('\r\n'), 'text/csv;charset=utf-8')
-}
-
-async function restore(file: File) {
-  let imported: State
-  try {
-    if (file.size > MAX_BACKUP_BYTES) throw new Error('size')
-    imported = parseBackup(await file.text(), knownPlaceIds)
-    const checkIds = new Set(checklist.map(item => item.id))
-    if (imported.checks.some(id => !checkIds.has(id))) throw new Error('checklist')
-  } catch {
-    announce('Archivo inválido o versión incompatible. Revisa que sea una copia JSON de Asia Trip.'); return
-  }
-  if (!confirm('¿Restaurar copia? Se sustituirán la agenda, las notas, los gastos y los ajustes locales.')) return
-  if (save(imported, true)) { render(); announce('Copia restaurada.') }
-}
-
-function reorder(id: string, direction: number) {
-  const list = [...state.activities]
-  const index = list.findIndex(item => item.id === id)
-  if (index < 0) return
-  const dayItems = list.filter(item => item.date === list[index].date)
-  const neighbor = dayItems[dayItems.findIndex(item => item.id === id) + direction]
-  if (!neighbor) return
-  const target = list.indexOf(neighbor)
-  ;[list[index], list[target]] = [list[target], list[index]]
-  if (save({ ...state, activities: list })) render()
-}
-
 async function copyAddress(id: string) {
   const place = getPlace(state,id)
   if (!place) return
-  try { await navigator.clipboard.writeText(place.address); announce('Dirección copiada.') }
-  catch { window.prompt('Copia la dirección:', place.address) }
+  await copyText(place.address,'Dirección copiada.')
+}
+
+async function copyText(value: string, message: string) {
+  try { await navigator.clipboard.writeText(value); announce(message) }
+  catch { window.prompt('Copia este texto', value) }
+}
+
+function openNote(note?: Note, activityId?: string) {
+  const activity = state.activities.find(item => item.id === activityId)
+  const seed = note ?? (activity ? { id:'', date:activity.date || agendaDate, placeId:activity.placeId, text:'', rating:null, memory:'', activityId:activity.id } : undefined)
+  show(note ? 'Editar nota' : 'Nueva nota', noteForm(state, agendaDate, seed))
+}
+
+async function saveJournal(form: HTMLFormElement) {
+  const formData = new FormData(form)
+  const input = formData.get('photo')
+  let uploaded: string | undefined
+  try {
+    const next = formState(form)
+    const id = String(formData.get('id') || '')
+    const note = id ? next.notes.find(item => item.id === id) : next.notes.at(-1)
+    if (!note) return
+    if (input instanceof File && input.size) uploaded = (await storeAttachment(input,'photo')).id
+    if (uploaded) note.photoId = uploaded
+    if (save(next)) finish('Recuerdo guardado.')
+    else if (uploaded) await removeAttachment(uploaded)
+  } catch (error) {
+    if (uploaded) await removeAttachment(uploaded).catch(() => undefined)
+    announce(error instanceof Error ? error.message : 'No se pudo guardar el recuerdo.')
+  }
 }
 
 function remove(kind: string, id: string) {
   if (!confirm('¿Borrar este elemento?')) return
   let next: State
-  if (kind === 'delete-activity') next = { ...state, activities: state.activities.filter(item => item.id !== id || !item.custom) }
-  else if (kind === 'delete-note') next = { ...state, notes: state.notes.filter(item => item.id !== id) }
-  else if (kind === 'delete-expense') next = { ...state, expenses: state.expenses.filter(item => item.id !== id) }
+  if (kind === 'delete-note') next = { ...state, notes: state.notes.filter(item => item.id !== id) }
   else {
-    if (state.activities.some(item => item.placeId === id) || state.notes.some(item => item.placeId === id)) { announce('Primero desvincula el lugar de sus actividades y notas.'); return }
+    if ([...state.activities,...state.trash].some(item => item.placeId === id) || state.notes.some(item => item.placeId === id)) { announce('Primero desvincula el lugar de sus actividades, papelera y notas.'); return }
     next = { ...state, customPlaces: state.customPlaces.filter(item => item.id !== id), favorites: state.favorites.filter(item => item !== id) }
   }
   if (save(next)) finish('Elemento borrado.')
@@ -237,39 +388,43 @@ root.addEventListener('click', event => {
   const action = target.dataset.action ?? ''
   const id = target.dataset.id ?? ''
   switch (action) {
-    case 'today': agendaDate = planningDay(new Date()); go('agenda'); break
-    case 'agenda-day': agendaDate = id; go('agenda'); break
     case 'select-day': agendaDate = id; render(); break
     case 'directions': openDirections(id, target.closest<HTMLElement>('[data-activity]')?.dataset.activity); break
     case 'locate': locate(); break
     case 'copy': void copyAddress(id); break
-    case 'family': if (save({ ...state, family: !state.family })) go('inicio'); break
-    case 'emergency': show('Emergencias', emergencyLinks()); break
+    case 'emergency': go('emergencias'); break
     case 'theme': show('Apariencia', `<form data-form="theme"><label class="field"><span>Tema</span><select name="theme">${option('auto','Sistema',state.theme)}${option('light','Claro',state.theme)}${option('dark','Oscuro',state.theme)}</select></label><button class="button primary" type="submit">Guardar apariencia</button></form>`); break
-    case 'new-activity': show('Nueva actividad', activityForm(state, agendaDate)); break
-    case 'edit-activity': show('Editar actividad', activityForm(state, agendaDate, state.activities.find(item => item.id === id))); break
-    case 'up': reorder(id, -1); break
-    case 'down': reorder(id, 1); break
     case 'place-list': view.tab = 'list'; render(); break
-    case 'place-map': view.tab = 'map'; render(); break
+    case 'place-map': view.tab = 'map'; if (view.city === 'sg' || view.city === 'kl') view.mapCity = view.city; render(); break
     case 'favorite': if (save({ ...state, favorites: state.favorites.includes(id) ? state.favorites.filter(value => value !== id) : [...state.favorites, id] })) render(); break
     case 'marker': view.selection = id; render(); break
+    case 'center-map': view.centered = !view.centered; render(); break
+    case 'place-add': {
+      const place = getPlace(state,id)
+      if (place) openActivity(app,{title:place.name,date:agendaDate,placeId:id,zone:place.area,address:place.address,lat:place.lat,lon:place.lon,detail:place.description,officialUrl:place.source})
+      break
+    }
+    case 'event-add': {
+      const seed = eventSeed(id,agendaDate)
+      if (seed) openActivity(app,seed)
+      break
+    }
+    case 'dish-tried':
+      commit({ ...state,triedDishes: state.triedDishes.includes(id) ? state.triedDishes.filter(value => value !== id) : [...state.triedDishes,id] }, 'Gastronomía actualizada.'); break
+    case 'driver': {
+      const place = getPlace(state,id)
+      if (place) void copyText(`Please take us to ${place.name}. ${place.address}. We are five passengers.`, 'Mensaje para el conductor copiado.')
+      break
+    }
     case 'new-place': show('Nuevo lugar', placeForm()); break
     case 'edit-place': show('Editar lugar', placeForm(state.customPlaces.find(item => item.id === id))); break
     case 'diary-notes': tab = 'notes'; render(); break
     case 'diary-expenses': tab = 'expenses'; render(); break
     case 'diary-backup': tab = 'backup'; render(); break
-    case 'new-note': show('Nueva nota', noteForm(state, agendaDate)); break
-    case 'edit-note': show('Editar nota', noteForm(state, agendaDate, state.notes.find(item => item.id === id))); break
-    case 'new-expense': show('Nuevo gasto', expenseForm(agendaDate)); break
-    case 'edit-expense': show('Editar gasto', expenseForm(agendaDate, state.expenses.find(item => item.id === id))); break
-    case 'budget': show('Configurar presupuesto', budgetForm(state)); break
-    case 'export-json':
-      try { download('asia-trip-copia.json', serializeBackup(state, knownPlaceIds), 'application/json;charset=utf-8') }
-      catch { announce('No se pudo preparar la copia de seguridad.') }
-      break
-    case 'export-csv': exportCSV(); break
-    case 'delete-activity': case 'delete-place': case 'delete-note': case 'delete-expense': remove(action, id); break
+    case 'new-note': openNote(); break
+    case 'edit-note': openNote(state.notes.find(item => item.id === id)); break
+    case 'print-journal': window.print(); break
+    case 'delete-place': case 'delete-note': remove(action, id); break
     case 'close-dialog': modal.close(); break
   }
 })
@@ -280,6 +435,11 @@ root.addEventListener('input', event => {
     view.query = target.value
     document.querySelector('#place-results')!.innerHTML = placeList(state, view)
   }
+  if (target instanceof HTMLInputElement && target.dataset.action === 'dish-query') {
+    foodFilters.query = target.value
+    const results = content.querySelector('#food-results')
+    if (results) results.innerHTML = foodResults(state)
+  }
 })
 
 root.addEventListener('change', event => {
@@ -287,21 +447,22 @@ root.addEventListener('change', event => {
   if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return
   const action = target.dataset.action
   if (target.id === 'direction-origin' || target.id === 'direction-mode') { updateDirections(); return }
-  if (action === 'agenda-date') { agendaDate = target.value; render() }
-  if (action === 'map-date') { view.date = target.value; view.selection = ''; render() }
+  if (action === 'map-date') { view.date = target.value; view.selection = ''; view.centered = false; const location = getDay(view.date).city; if (location !== 'air') view.mapCity = location; render() }
+  if (action === 'map-city' && (target.value === 'sg' || target.value === 'kl')) { view.mapCity = target.value; view.selection = ''; view.centered = false; render() }
+  if (action === 'map-filter') { view.mapFilter = target.value; view.centered = false; render() }
   if (action === 'place-city') { view.city = target.value; render() }
   if (action === 'place-kind') { view.kind = target.value; render() }
-  if (action === 'status' && Object.hasOwn(statuses, target.value)) {
-    const status = target.value as Activity['status']
-    const activities = state.activities.map(item => item.id === target.dataset.id ? { ...item, status } : item)
-    save({ ...state, activities }); render()
-  }
+  if (action === 'event-date') { eventFilters.date = target.value; render() }
+  if (action === 'event-city') { eventFilters.city = target.value; render() }
+  if (action === 'event-category') { eventFilters.category = target.value; render() }
+  if (action === 'event-price') { eventFilters.price = target.value; render() }
+  if (action === 'dish-city') { foodFilters.city = target.value; render() }
+  if (action === 'dish-only-tried' && target instanceof HTMLInputElement) { foodFilters.tried = target.checked; render() }
   if (action === 'check' && target instanceof HTMLInputElement && target.dataset.id) {
     const id = target.dataset.id
     const checks = target.checked ? [...new Set([...state.checks,id])] : state.checks.filter(item => item !== id)
     save({ ...state, checks }); render()
   }
-  if (action === 'import' && target instanceof HTMLInputElement && target.files?.[0]) { const file = target.files[0]; target.value = ''; void restore(file) }
 })
 
 function upsert<T extends { id: string }>(list: T[], item: T) {
@@ -315,13 +476,6 @@ function formState(form: HTMLFormElement) {
   const id = value('id') || crypto.randomUUID()
   const date = value('date')
   const placeId = value('placeId')
-  if (form.dataset.form === 'activity') {
-    const old = state.activities.find(item => item.id === id)
-    const item: Activity = { id, date, placeId, title: value('title'), time: value('time'), duration: Number(value('duration')), zone: value('zone'), effort: value('effort') as Activity['effort'], priority: value('priority') as Activity['priority'], status: old?.status ?? 'pending', food: value('food'), tickets: value('tickets'), rain: value('rain'), detail: value('detail'), fromHotel: value('fromHotel'), fromPrevious: value('fromPrevious'), flight: old?.flight, localTime: old?.localTime, custom: old ? old.custom : true }
-    if (!item.title) throw new Error('Escribe un nombre para la actividad.')
-    const activities = old && old.date !== item.date ? [...state.activities.filter(previous => previous.id !== id), item] : upsert(state.activities, item)
-    return { ...state, activities }
-  }
   if (form.dataset.form === 'place') {
     const item: Place = { id, name: value('name'), city: value('city') as Place['city'], kind: value('kind') as Place['kind'], area: value('area'), address: value('address'), lat: number('lat'), lon: number('lon'), description: value('description'), photo: value('photo'), access: value('access'), shade: value('shade'), price: value('price') }
     if (!item.name || !item.address) throw new Error('Escribe el nombre y la dirección del lugar.')
@@ -329,16 +483,11 @@ function formState(form: HTMLFormElement) {
     return { ...state, customPlaces: upsert(state.customPlaces, item) }
   }
   if (form.dataset.form === 'note') {
-    const note: Note = { id, date, placeId, text: value('text'), memory: value('memory'), rating: number('rating') }
+    const existing = state.notes.find(item => item.id === id)
+    const note: Note = { id, date, placeId, text: value('text'), memory: value('memory'), rating: number('rating'), activityId: value('activityId') || undefined, photoId: value('clearPhoto') ? undefined : existing?.photoId }
     if (!note.text) throw new Error('Escribe una nota antes de guardarla.')
     return { ...state, notes: upsert(state.notes, note) }
   }
-  if (form.dataset.form === 'expense') {
-    const expense: Expense = { id, date, title: value('title'), amount: Number(value('amount')), currency: value('currency') as Currency, category: value('category') }
-    if (!expense.title) throw new Error('Escribe un concepto para el gasto.')
-    return { ...state, expenses: upsert(state.expenses, expense) }
-  }
-  if (form.dataset.form === 'budget') return { ...state, budget: number('budget'), rates: { SGD: number('SGD'), MYR: number('MYR') } }
   if (form.dataset.form === 'theme') return { ...state, theme: value('theme') as State['theme'] }
   return state
 }
@@ -347,6 +496,7 @@ root.addEventListener('submit', event => {
   const form = event.target
   if (!(form instanceof HTMLFormElement) || !form.dataset.form) return
   event.preventDefault()
+  if (form.dataset.form === 'note') { void saveJournal(form); return }
   try {
     if (save(formState(form))) finish('Cambios guardados.')
   } catch (error) { announce(error instanceof Error ? error.message : 'No se pudieron guardar los cambios.') }
@@ -360,8 +510,9 @@ modal.addEventListener('close', () => {
   returnFocus = null
 })
 window.addEventListener('hashchange', () => render(true))
-window.addEventListener('online', () => updateTopbar())
-window.addEventListener('offline', () => updateTopbar())
+function connectionChanged() { if (route() === 'inicio' && !modal.open) render(); else updateTopbar() }
+window.addEventListener('online', connectionChanged)
+window.addEventListener('offline', connectionChanged)
 navigator.serviceWorker?.addEventListener('controllerchange', () => updateTopbar())
 window.setInterval(() => {
   updateTopbar()

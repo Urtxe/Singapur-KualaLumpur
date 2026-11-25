@@ -1,192 +1,179 @@
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
-const baseURL = 'http://127.0.0.1:4173/asia-trip/';
+const base = 'http://127.0.0.1:4173/asia-trip/';
 
-test.describe('Asia Trip 2026', () => {
-  test('desktop navigation, place search and schematic map work', async ({ page }) => {
-    const pageErrors: string[] = [];
-    page.on('pageerror', error => pageErrors.push(error.message));
-    await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto(baseURL);
+test('keeps the travel guide, city maps and all three Google Maps modes', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto(base);
+  await expect(page.getByRole('heading',{name:'HOY',exact:true})).toBeVisible();
+  await page.getByRole('link',{name:'Lugares',exact:true}).click();
+  await page.getByRole('searchbox',{name:'Buscar lugares'}).fill('Gardens by the Bay');
+  await expect(page.getByRole('heading',{name:'Gardens by the Bay',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Mapa',exact:true}).click();
+  await expect(page.getByLabel('Día del mapa')).toBeVisible();
+  await page.locator('.map-itinerary button').first().click();
+  await page.getByRole('button',{name:/Cómo llegar a/}).first().click();
+  const link = page.getByRole('link',{name:'Abrir en Google Maps'});
+  await expect(link).toHaveAttribute('href',/travelmode=walking/);
+  await page.getByLabel('Modo').selectOption('transit');
+  await expect(link).toHaveAttribute('href',/travelmode=transit/);
+  await page.getByLabel('Modo').selectOption('driving');
+  await expect(link).toHaveAttribute('href',/travelmode=driving/);
+  await expect(link).toHaveAttribute('target','_blank');
+  await page.getByRole('button',{name:'Cerrar',exact:true}).click();
+  await page.getByLabel('Ciudad del mapa').selectOption('kl');
+  await page.getByLabel('Puntos del mapa',{exact:true}).selectOption('medical');
+  await expect(page.locator('.map-pin').first()).toBeVisible();
+  expect(errors).toEqual([]);
+});
 
-    await expect(page.getByRole('heading', { name: 'Asia Trip 2026' })).toBeVisible();
-    await page.getByRole('link', { name: 'Lugares' }).click();
-    await expect(page).toHaveURL(/#lugares$/);
-    const search = page.getByRole('searchbox', { name: 'Buscar lugares' });
-    await search.fill('Gardens by the Bay');
-    await expect(page.getByText('Gardens by the Bay', { exact: true }).first()).toBeVisible();
+test('persists edits to an original activity and preserves status when moving a custom activity', async ({ page }) => {
+  await page.goto(`${base}#agenda`);
+  const day = page.getByLabel('Día de la agenda');
+  await day.fill('2026-12-04');
+  await day.dispatchEvent('change');
+  const original = page.locator('.pl-activity').first();
+  const title = (await original.locator('h3').textContent())!;
+  await original.getByRole('combobox',{name:/Estado de/}).selectOption('done');
+  await original.getByRole('button',{name:'Editar',exact:true}).click();
+  let modal = page.getByRole('dialog');
+  await modal.getByLabel('Hora de inicio',{exact:true}).fill('09:17');
+  await modal.getByRole('button',{name:'Guardar actividad'}).click();
+  await page.reload();
+  await day.fill('2026-12-04');
+  await day.dispatchEvent('change');
+  const persisted = page.locator('.pl-activity').filter({hasText:title});
+  await expect(persisted).toContainText('09:17');
+  await expect(persisted.getByRole('combobox',{name:/Estado de/})).toHaveValue('done');
+  await page.locator('[data-pl-action="new"]').click();
+  modal = page.getByRole('dialog',{name:'Nueva actividad'});
+  await modal.getByLabel('Nombre',{exact:true}).fill('Pausa de prueba');
+  await modal.getByLabel('Hora de inicio',{exact:true}).fill('14:30');
+  await modal.getByRole('button',{name:'Guardar actividad'}).click();
+  const custom = page.locator('.pl-activity').filter({hasText:'Pausa de prueba'});
+  await custom.getByRole('combobox',{name:/Estado de/}).selectOption('done');
+  await custom.getByRole('button',{name:'Editar',exact:true}).click();
+  modal = page.getByRole('dialog',{name:'Editar actividad'});
+  await modal.locator('input[name="date"]').fill('2026-12-05');
+  await modal.getByRole('button',{name:'Guardar actividad'}).click();
+  await day.fill('2026-12-05');
+  await day.dispatchEvent('change');
+  await expect(custom).toBeVisible();
+  await expect(custom.getByRole('combobox',{name:/Estado de/})).toHaveValue('done');
+});
 
-    await page.getByRole('button', { name: 'Mapa' }).click();
-    await expect(page.getByLabel('Día del mapa')).toBeVisible();
-    await expect(page.locator('.map-pin').first()).toBeVisible();
-    await page.locator('.map-itinerary button').first().click();
-    await page.getByRole('button', { name: /Cómo llegar a/ }).first().click();
-    await expect(page.getByRole('dialog', { name: 'Cómo llegar' })).toBeVisible();
-    const directions = page.getByRole('link', { name: 'Abrir en Google Maps' });
-    await expect(directions).toHaveAttribute('href', /google\.com\/maps\/dir/);
-    await expect(directions).toHaveAttribute('target', '_blank');
-    await page.getByLabel('Modo').selectOption('transit');
-    await expect(directions).toHaveAttribute('href', /travelmode=transit/);
-    await page.getByLabel('Modo').selectOption('driving');
-    await expect(directions).toHaveAttribute('href', /travelmode=driving/);
-    expect(pageErrors).toEqual([]);
-  });
-
-  test('activity status and edited time persist, and a custom activity can move days', async ({ page }) => {
-    await page.goto(`${baseURL}#agenda`);
-    const day = page.getByLabel('Día de la agenda');
-    await day.selectOption('2026-12-04');
-    const firstActivity = page.locator('[data-activity]').first();
-    const status = firstActivity.getByRole('combobox', { name: /^Estado de / });
-    await status.selectOption('done');
-
-    const title = await firstActivity.locator('h3').textContent();
-    if (!title) throw new Error('La actividad no muestra un título');
-    await page.getByRole('button', { name: `Editar actividad ${title}` }).click();
-    const dialog = page.getByRole('dialog', { name: 'Editar actividad' });
-    await dialog.getByLabel('Hora').fill('09:17');
-    await dialog.getByRole('button', { name: 'Guardar actividad' }).click();
-    await expect(page.locator('[data-activity]').filter({ hasText: title }).getByText('09:17')).toBeVisible();
-
-    await page.reload();
-    await page.getByLabel('Día de la agenda').selectOption('2026-12-04');
-    const persistedActivity = page.locator('[data-activity]').filter({ hasText: title });
-    await expect(persistedActivity.getByRole('combobox', { name: `Estado de ${title}` })).toHaveValue('done');
-    await expect(persistedActivity.getByText('09:17')).toBeVisible();
-
-    await page.getByRole('button', { name: 'Añadir actividad' }).click();
-    const addDialog = page.getByRole('dialog', { name: 'Nueva actividad' });
-    await addDialog.getByLabel('Nombre').fill('Pausa de prueba');
-    await addDialog.getByLabel('Día').selectOption('2026-12-04');
-    await addDialog.getByLabel('Hora').fill('14:30');
-    await addDialog.getByLabel('Duración (minutos)').fill('30');
-    await addDialog.getByRole('button', { name: 'Guardar actividad' }).click();
-
-    let customActivity = page.locator('[data-activity]').filter({ hasText: 'Pausa de prueba' });
-    await customActivity.getByRole('combobox', { name: 'Estado de Pausa de prueba' }).selectOption('done');
-    const moveDown = customActivity.getByRole('button', { name: 'Bajar Pausa de prueba' });
-    if (await moveDown.isEnabled()) await moveDown.click();
-    else await customActivity.getByRole('button', { name: 'Subir Pausa de prueba' }).click();
-    customActivity = page.locator('[data-activity]').filter({ hasText: 'Pausa de prueba' });
-    await expect(customActivity.getByRole('combobox', { name: 'Estado de Pausa de prueba' })).toHaveValue('done');
-    await customActivity.getByRole('button', { name: 'Editar actividad Pausa de prueba' }).click();
-    const moveDialog = page.getByRole('dialog', { name: 'Editar actividad' });
-    await moveDialog.getByLabel('Día').selectOption('2026-12-05');
-    await moveDialog.getByRole('button', { name: 'Guardar actividad' }).click();
-    await page.getByLabel('Día de la agenda').selectOption('2026-12-05');
-    customActivity = page.locator('[data-activity]').filter({ hasText: 'Pausa de prueba' });
-    await expect(customActivity).toBeVisible();
-    await expect(customActivity.getByRole('combobox', { name: 'Estado de Pausa de prueba' })).toHaveValue('done');
-  });
-
-  test('diary expenses, manual currency conversion, notes and backup validation', async ({ page }) => {
-    await page.goto(`${baseURL}#diario`);
-    await page.getByRole('button', { name: 'Gastos' }).click();
-    await page.getByRole('button', { name: 'Configurar presupuesto' }).click();
-    const budgetDialog = page.getByRole('dialog');
-    await budgetDialog.getByLabel('Presupuesto (EUR)').fill('1200');
-    await budgetDialog.getByLabel('EUR por 1 SGD').fill('0.68');
-    await budgetDialog.getByRole('button', { name: 'Guardar presupuesto' }).click();
-
-    await page.getByRole('button', { name: 'Añadir gasto' }).click();
-    const expenseDialog = page.getByRole('dialog');
-    await expenseDialog.getByLabel('Concepto').fill('Cena de prueba');
-    await expenseDialog.getByLabel('Importe').fill('25');
-    await expenseDialog.getByLabel('Moneda').selectOption('SGD');
-    await expenseDialog.getByRole('button', { name: /Guardar gasto/ }).click();
-    await expect(page.getByText('Cena de prueba')).toBeVisible();
-    await expect(page.getByText(/17[,.]00\s*€/).first()).toBeVisible();
-
-    await page.getByRole('button', { name: 'Notas' }).click();
-    await page.getByRole('button', { name: 'Añadir nota' }).click();
-    const noteDialog = page.getByRole('dialog');
-    await noteDialog.getByLabel('Nota').fill('Noche memorable');
-    await noteDialog.getByRole('button', { name: /Guardar nota/ }).click();
-    await expect(page.getByText('Noche memorable')).toBeVisible();
-
-    await page.getByRole('button', { name: 'Copias' }).click();
-    const [csvDownload] = await Promise.all([
-      page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Exportar CSV' }).click(),
+test('combines a plan from another phone with local expenses and deduplicates replay', async ({ browser }) => {
+  const sending = await browser.newContext({acceptDownloads:true});
+  const receiving = await browser.newContext();
+  try {
+    const phoneA = await sending.newPage();
+    await phoneA.goto(`${base}#agenda`);
+    await phoneA.locator('[data-pl-action="new"]').click();
+    const activity = phoneA.getByRole('dialog',{name:'Nueva actividad'});
+    await activity.getByLabel('Nombre',{exact:true}).fill('Pausa del iPhone');
+    await activity.getByRole('button',{name:'Guardar actividad'}).click();
+    await phoneA.goto(`${base}#compartir`);
+    await phoneA.getByLabel('Qué quieres compartir').selectOption('planning');
+    const [download] = await Promise.all([
+      phoneA.waitForEvent('download'), phoneA.locator('[data-exchange-action="download-json"]').click(),
     ]);
-    expect(csvDownload.suggestedFilename()).toMatch(/\.csv$/);
-    const csv = await readFile((await csvDownload.path())!, 'utf8');
-    expect(csv).toContain('Cena de prueba');
-    expect(csv).toContain('17');
+    const bytes = await readFile((await download.path())!);
+    expect(download.suggestedFilename()).toMatch(/\.json$/);
 
-    const [backupDownload] = await Promise.all([
-      page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Exportar JSON' }).click(),
-    ]);
-    expect(backupDownload.suggestedFilename()).toMatch(/\.json$/);
-    const backup = await readFile((await backupDownload.path())!, 'utf8');
-    expect(JSON.parse(backup).version).toBe(1);
-    await page.getByRole('button', { name: 'Notas' }).click();
-    await page.getByRole('button', { name: 'Editar nota' }).click();
-    const editNote = page.getByRole('dialog', { name: 'Editar nota' });
-    page.once('dialog', dialog => dialog.accept());
-    await editNote.getByRole('button', { name: 'Borrar nota' }).click();
-    await expect(page.getByRole('main').getByText('Noche memorable')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Copias' }).click();
-    await page.getByLabel('Restaurar copia JSON').setInputFiles({
-      name: 'invalid.json', mimeType: 'application/json', buffer: Buffer.from('{not valid json'),
-    });
-    await expect(page.locator('.toast')).toContainText(/inválid|válid|error/i);
-    await page.getByRole('button', { name: 'Gastos' }).click();
-    await expect(page.getByText('Cena de prueba')).toBeVisible();
-    await page.getByRole('button', { name: 'Notas' }).click();
-    await expect(page.getByRole('main').getByText('Noche memorable')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Copias' }).click();
-    page.once('dialog', dialog => dialog.accept());
-    await page.getByLabel('Restaurar copia JSON').setInputFiles({
-      name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(backup),
-    });
-    await expect(page.locator('.toast')).toContainText('Copia restaurada');
-    await page.getByRole('button', { name: 'Notas' }).click();
-    await expect(page.getByText('Noche memorable')).toBeVisible();
-  });
+    const phoneB = await receiving.newPage();
+    await phoneB.goto(`${base}#gastos`);
+    await phoneB.getByRole('button',{name:'Anotar gasto'}).click();
+    const expense = phoneB.getByRole('dialog',{name:'Anotar gasto'});
+    await expense.getByLabel('Concepto').fill('Gasto propio del POCO');
+    await expense.getByLabel('Importe').fill('12.40');
+    await expense.getByRole('button',{name:'Guardar gasto'}).click();
+    await expect(phoneB.getByText('Gasto propio del POCO',{exact:true})).toBeVisible();
 
-  test('mobile layout, keyboard access and offline after first service worker install', async ({ browser }) => {
-    const context = await browser.newContext({ viewport: { width: 375, height: 812 }, deviceScaleFactor: 1 });
+    await phoneB.goto(`${base}#compartir`);
+    const selectFile = phoneB.locator('[data-exchange-file]');
+    await selectFile.setInputFiles({name:'malicioso.json',mimeType:'application/json',buffer:Buffer.from('{mal formado')});
+    await expect(phoneB.locator('.toast')).toContainText('El archivo no contiene un JSON válido.');
+    for (let attempt=0; attempt<2; attempt++) {
+      await selectFile.setInputFiles({name:`plan-${attempt}.json`,mimeType:'application/json',buffer:bytes});
+      await phoneB.locator('[data-exchange-action="apply"]').click();
+    }
+    await phoneB.goto(`${base}#agenda`);
+    await expect(phoneB.getByRole('heading',{name:'Pausa del iPhone'})).toHaveCount(1);
+    await phoneB.goto(`${base}#gastos`);
+    await expect(phoneB.getByText('Gasto propio del POCO',{exact:true})).toBeVisible();
+  } finally { await Promise.all([sending.close(),receiving.close()]); }
+});
+
+test('keeps local diary notes after a reload and exports an Excel-compatible expense CSV', async ({ page }) => {
+  await page.goto(`${base}#diario`);
+  await page.getByRole('button',{name:'Añadir nota'}).click();
+  const dialog = page.getByRole('dialog',{name:'Nueva nota'});
+  await dialog.getByLabel('Nota',{exact:true}).fill('Noche memorable');
+  await dialog.getByRole('button',{name:'Guardar nota'}).click();
+  const context = page.context();
+  await page.close();
+  page = await context.newPage();
+  await page.goto(`${base}#diario`);
+  await expect(page.getByText('Noche memorable',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Gastos',exact:true}).click();
+  await page.getByRole('button',{name:'Anotar gasto'}).click();
+  const expense = page.getByRole('dialog',{name:'Anotar gasto'});
+  await expense.getByLabel('Concepto').fill('=1+1');
+  await expense.getByLabel('Importe').fill('12.34');
+  await expense.getByRole('button',{name:'Guardar gasto'}).click();
+  const [download] = await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Exportar CSV'}).click()]);
+  expect(download.suggestedFilename()).toMatch(/\.csv$/);
+  expect(await readFile((await download.path())!,'utf8')).toContain("'=1+1");
+});
+
+test('explicitly restores a deleted note from a complete backup', async ({ page }) => {
+  await page.goto(`${base}#diario`);
+  await page.getByRole('button',{name:'Añadir nota'}).click();
+  const note = page.getByRole('dialog',{name:'Nueva nota'});
+  await note.getByLabel('Nota',{exact:true}).fill('Recuerdo de la copia');
+  await note.getByRole('button',{name:'Guardar nota'}).click();
+  await page.getByRole('button',{name:'Copias',exact:true}).click();
+  const [download] = await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Descargar copia completa'}).click()]);
+  const snapshot = await readFile((await download.path())!);
+  expect(JSON.parse(snapshot.toString()).version).toBe(2);
+  await page.getByRole('button',{name:'Notas',exact:true}).click();
+  await page.getByRole('button',{name:'Editar nota'}).click();
+  page.once('dialog',dialog=>dialog.accept());
+  await page.getByRole('button',{name:'Borrar nota'}).click();
+  await expect(page.getByRole('main').getByText('Recuerdo de la copia')).toHaveCount(0);
+  await page.getByRole('button',{name:'Copias',exact:true}).click();
+  await page.locator('[data-exchange-file]').setInputFiles({name:'copia-completa.json',mimeType:'application/json',buffer:snapshot});
+  page.once('dialog',dialog=>dialog.accept());
+  await page.locator('[data-exchange-action="restore-backup"]').click();
+  await expect(page.locator('.toast')).toContainText('copia completa');
+  await page.getByRole('button',{name:'Notas',exact:true}).click();
+  await expect(page.getByText('Recuerdo de la copia',{exact:true})).toBeVisible();
+});
+
+test('works offline under the subpath and keeps a keyboard path at 375 px', async ({ browser }) => {
+  const context = await browser.newContext({viewport:{width:375,height:812}});
+  try {
     const page = await context.newPage();
-    const consoleErrors: string[] = [];
-    page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
-    page.on('pageerror', error => consoleErrors.push(error.message));
-    await page.goto(baseURL);
-    await expect(page.getByRole('navigation', { name: 'Navegación principal' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Asia Trip 2026' })).toBeVisible();
-    const assertNoOverflow = async () => {
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
-      expect(overflow).toBe(false);
-    };
-    await assertNoOverflow();
-
+    const errors: string[] = [];
+    page.on('pageerror',error=>errors.push(error.message));
+    page.on('console',entry=>{ if(entry.type()==='error') errors.push(entry.text()); });
+    await page.goto(base);
+    await expect(page.getByText('Disponible offline',{exact:true})).toBeVisible();
     await page.keyboard.press('Tab');
     await expect(page.locator(':focus')).toBeVisible();
-    await page.getByRole('link', { name: 'Agenda' }).click();
-    await expect(page).toHaveURL(/#agenda$/);
-    await expect(page.locator('[data-activity]').first()).toBeVisible();
-    await assertNoOverflow();
-    await page.getByRole('link', { name: 'Lugares' }).click();
-    await assertNoOverflow();
-    await page.getByRole('link', { name: 'Diario' }).click();
-    await assertNoOverflow();
-    await page.getByRole('link', { name: 'Agenda' }).click();
-    await expect(page.getByRole('heading', { name: 'Agenda' })).toBeVisible();
-
-    const installed = await page.evaluate(async () => {
-      if (!('serviceWorker' in navigator)) return false;
-      await navigator.serviceWorker.ready;
-      return Boolean(navigator.serviceWorker.controller);
-    });
-    expect(installed).toBe(true);
+    for (const route of ['inicio','agenda','lugares','gastos','compartir','viaje']) {
+      await page.goto(`${base}#${route}`);
+      await expect(page.locator('main h1').first()).toBeVisible();
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true);
+    }
     await context.setOffline(true);
+    await page.goto(`${base}#agenda`);
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Agenda' })).toBeVisible();
-    await page.getByRole('link', { name: 'Viaje' }).click();
-    await expect(page.getByRole('heading', { name: /Viaje/ })).toBeVisible();
-    expect(consoleErrors).toEqual([]);
-    await context.close();
-  });
+    await expect(page.locator('.pl-activity').first()).toBeVisible();
+    await page.goto(`${base}#gastronomia`);
+    await expect(page.getByRole('heading',{name:'Gastronomía',exact:true})).toBeVisible();
+    expect(errors).toEqual([]);
+  } finally { await context.close(); }
 });

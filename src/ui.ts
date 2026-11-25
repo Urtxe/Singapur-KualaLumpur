@@ -1,14 +1,15 @@
 import { days, places } from './data'
+import { guidePlaces } from './guide-data'
 import { asiaDate, escapeHTML } from './state'
-import type { Activity, Day, Place, State } from './types'
+import type { Day, Place, State } from './types'
 
-export const routes = ['inicio', 'agenda', 'lugares', 'transporte', 'diario', 'viaje'] as const
+export const primaryRoutes = ['inicio', 'agenda', 'lugares', 'transporte', 'diario', 'viaje'] as const
+export const extraRoutes = ['eventos', 'gastronomia', 'gastos', 'compartir', 'offline', 'emergencias'] as const
+export const routes = [...primaryRoutes, ...extraRoutes] as const
 export type Route = typeof routes[number]
-export const labels: Record<Route, string> = { inicio: 'Inicio', agenda: 'Agenda', lugares: 'Lugares', transporte: 'Transporte', diario: 'Diario', viaje: 'Viaje' }
+export const labels: Record<Route, string> = { inicio: 'Inicio', agenda: 'Agenda', lugares: 'Lugares', transporte: 'Transporte', diario: 'Diario', viaje: 'Viaje', eventos: 'Agenda local', gastronomia: 'Gastronomía', gastos: 'Gastos', compartir: 'Compartir', offline: 'Offline y documentos', emergencias: 'Emergencias' }
 export const city = { sg: 'Singapur', kl: 'Kuala Lumpur', air: 'En ruta' }
-export const kind = { must: 'Imprescindible', food: 'Comida', optional: 'Opcional', hotel: 'Hotel', airport: 'Aeropuerto' }
-export const statuses = { pending: 'Pendiente', done: 'Realizado', skipped: 'Omitido' }
-export const categories = ['Comida', 'Transporte', 'Entradas', 'Alojamiento', 'Compras', 'Otros']
+export const kind = { must: 'Imprescindible', food: 'Comida', optional: 'Opcional', hotel: 'Hotel', airport: 'Aeropuerto', station: 'Estación', medical: 'Centro médico' }
 export const e = (value: unknown) => escapeHTML(String(value ?? ''))
 
 const paths: Record<string, string> = {
@@ -37,6 +38,13 @@ const paths: Record<string, string> = {
   wallet: '<path d="M20 9V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-3M3 8h15m-1 2h5v6h-5a3 3 0 0 1 0-6m1 3h.01"/>',
   rain: '<path d="M5 15a4 4 0 0 1 1-8 6 6 0 0 1 11 2 3 3 0 0 1 1 6M8 16l-2 4m7-4-2 4m7-4-2 4"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+  eventos: '<path d="M5 21V4h12l-2 4 2 4H5"/>',
+  gastronomia: '<path d="M5 3v6a3 3 0 0 0 6 0V3M8 3v18m8-3h4m0 3V3c-3 2-4 6-4 10h4"/>',
+  gastos: '<path d="M20 9V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-3M3 8h15m-1 2h5v6h-5a3 3 0 0 1 0-6m1 3h.01"/>',
+  compartir: '<path d="M12 16V3m-4 4 4-4 4 4M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/>',
+  offline: '<path d="M12 3v12m-4-4 4 4 4-4M4 17v3h16v-3"/>',
+  emergencias: '<path d="m12 3 8 3v5c0 4-3 7-8 10-5-3-8-6-8-10V6l8-3zM9 12h6m-3-3v6"/>',
+  photo: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m4 17 4-4 3 3 4-5 5 6"/>',
 }
 export const icon = (name: string, cls = '') => `<svg class="${cls}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] ?? paths.compass}</svg>`
 export const dateShort = (date: string) => `${Number(date.slice(-2))} dic`
@@ -44,36 +52,35 @@ export function dateLong(date: string) {
   return new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`))
 }
 export function dayOptions(selected: string) {
-  return days.map(day => option(day.date, `${dateShort(day.date)} · ${day.title}`, selected)).join('')
+  return days.map(day => option(day.date, `${dateShort(day.date)} · ${day.title}`, selected)).join('') +
+    (selected && !days.some(day => day.date === selected) ? option(selected, dateLong(selected), selected) : '')
 }
 export function option(value: string, label: string, selected: string) {
   return `<option value="${e(value)}"${selected === value ? ' selected' : ''}>${e(label)}</option>`
 }
 export function placeOptions(state: State, selected: string) {
-  return option('', 'Sin lugar asociado', selected) + [...places, ...state.customPlaces].map(place => option(place.id, `${place.name} · ${city[place.city]}`, selected)).join('')
+  return option('', 'Sin lugar asociado', selected) + allPlaces(state).map(place => option(place.id, `${place.name} · ${city[place.city]}`, selected)).join('')
 }
-export const allPlaces = (state: State) => [...places, ...state.customPlaces]
+export const publicPlaces = [...places, ...guidePlaces]
+export const allPlaces = (state: State) => [...publicPlaces, ...state.customPlaces]
 export const getPlace = (state: State, id: string) => allPlaces(state).find(place => place.id === id)
 export const getDay = (date: string) => days.find(day => day.date === date) ?? days[0]
 export const cityHotel = (location: Place['city']) => location === 'sg' ? 'mi-rochor' : 'star-residence'
 export function activeDay(now: Date): Day | undefined { return days.find(day => day.date === asiaDate(now)) }
 export function planningDay(now: Date) { return activeDay(now)?.date ?? '2026-12-04' }
 export const tripStart = Date.parse('2026-12-03T11:55:00+01:00')
-export const tripEnd = Date.parse('2026-12-12T11:20:00+01:00')
-export function activityInstant(activity: Activity) {
-  const european = activity.date === '2026-12-03' || activity.date === '2026-12-12'
-  return Date.parse(`${activity.date}T${activity.time}:00${european ? '+01:00' : '+08:00'}`)
-}
-export function nextActivity(state: State, now: Date) {
-  return state.activities.filter(item => item.status === 'pending' && activityInstant(item) >= +now)
-    .sort((a, b) => activityInstant(a) - activityInstant(b))[0]
-}
 export function currentHotel(state: State, now: Date) {
   const date = asiaDate(now)
   if (date > '2026-12-11') return undefined
   return getPlace(state, now.valueOf() >= Date.parse('2026-12-07T16:10:00+08:00') ? 'star-residence' : 'mi-rochor')
 }
 export const placeQuery = (place: Place) => `${place.name}, ${place.address}, ${city[place.city]}`
+export function directDistance(a: Pick<Place, 'lat'|'lon'>, b: Pick<Place, 'lat'|'lon'>) {
+  if (a.lat === null || a.lon === null || b.lat === null || b.lon === null) return null
+  const rad = Math.PI / 180
+  const h = Math.sin((a.lat - b.lat) * rad / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin((a.lon - b.lon) * rad / 2) ** 2
+  return 12_742 * Math.asin(Math.sqrt(Math.min(1, h)))
+}
 export function mapSearch(place: Place) {
   const params = new URLSearchParams({ api: '1', query: placeQuery(place) })
   return `https://www.google.com/maps/search/?${params}`

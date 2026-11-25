@@ -1,0 +1,128 @@
+:root {
+  --page: #f2f5f1;
+  --ink: #122821;
+  --muted: #4c6259;
+  --line: #d9e4dc;
+  --primary: #185344;
+  --accent-bg: #f9eed8;
+  --round: 19px;
+}
+:root[data-theme="dark"] { --page:#101d18; --ink:#edf5ef; --muted:#bdd1c3; --line:#355147; --primary:#a9d8bb; --accent-bg:#473423; }
+@media (prefers-color-scheme:dark) {
+  :root:not([data-theme="light"]) { --page:#101d18; --ink:#edf5ef; --muted:#bdd1c3; --line:#355147; --primary:#a9d8bb; --accent-bg:#473423; }
+}
+body { font-family: system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+.page-head { margin-bottom: 1.3rem; }
+.page-head h1 { font: 710 clamp(2.2rem,7vw,3.5rem)/1.04 system-ui,sans-serif; letter-spacing: -.064em; }
+.page-head p { max-width: 62ch; }
+.brand-icon { background: linear-gradient(160deg,#185344,#10372c); }
+.offline-status { text-decoration: none; min-height: 38px; }
+.side-navigation { display: none; }
+.control-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(144px,100%),1fr)); gap:0 9px; }
+.control-grid .field { margin-bottom:.65rem; }
+.control-grid select { width:100%; }
+.section-heading { margin:1.4rem 0 .75rem; }
+.fineprint { color:var(--muted); font-size:.84rem; overflow-wrap:anywhere; }
+.guide-card .facts { margin:.65rem 0; }
+.guide-card .actions { margin-top:.6rem; }
+.travel-tools { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(145px,100%),1fr)); gap:8px; margin-bottom:14px; }
+.travel-tools a { display:flex; min-height:64px; align-items:center; gap:9px; padding:9px; border-radius:12px; text-decoration:none; background:var(--surface); color:var(--ink); border:1px solid var(--line); font-size:.86rem; }
+.travel-tools a:hover { border-color:var(--primary); }
+.home-extras { margin-top:18px; display:grid; gap:8px; }
+.trip-progress { display:flex; flex-wrap:wrap; gap:6px 12px; justify-content:space-between; align-items:center; min-height:50px; border-bottom:1px solid var(--line); }
+.trip-progress svg { margin-right:5px; color:var(--primary); }
+.home-extras details summary { min-height:44px; }
+.home-extras details[open] summary { margin-bottom:8px; }
+
+.pl-today-hero { color:#fff!important; background:linear-gradient(90deg,#071d17eb,#0d3022b2 48%,#143b2b28),url('/cover.webp') center 56% / cover no-repeat,#173829!important; min-height:184px; align-items:end!important; }
+.pl-today-hero[data-city="kl"], .pl-today-hero.kl { background:linear-gradient(90deg,#101928eb,#122637a0 44%,#142d4222),url('/kuala-lumpur.webp') center 47% / cover no-repeat,#163042!important; }
+.pl-today-hero .pl-kicker,.pl-today-hero p { color:#f7f4dc!important; }
+.pl-today-hero h1 { font-size:clamp(2.5rem,8vw,4.85rem)!important; line-height:.98; margin-block:5px!important; font-weight:740; }
+.pl-today-hero>div { min-width:0; }
+.pl-today-hero .pl-add { background:#fff;color:#153629!important; border-color:#fff; flex:none; white-space:normal; }
+.pl-today-hero .pl-add:hover { background:#eff8f1; }
+.pl-next { --next-glow:#cfe7d1; background:radial-gradient(circle at 100% 0%,var(--next-glow),transparent 42%),var(--surface)!important; }
+:root[data-theme="dark"] .pl-next { --next-glow:#2c5242; }
+@media (prefers-color-scheme:dark) { :root:not([data-theme="light"]) .pl-next { --next-glow:#2c5242; } }
+.pl-activity .pl-grip { touch-action:none; }
+.pl-hero .pl-add { white-space:nowrap; }
+
+.filter-check { display:flex; min-height:44px; align-items:center; gap:7px; color:var(--ink); font-weight:580; }
+.filter-check input { accent-color:var(--primary); width:18px; height:18px; flex:none; }
+.food-filter { margin-bottom:16px; }
+.food-card,.journal-card { padding:0; overflow:hidden; }
+.food-photo,.journal-photo { display:block; width:100%; height:auto; aspect-ratio:16/9; object-fit:cover; background:var(--surface-2); }
+.food-card .food-photo,.journal-card .journal-photo { margin:0; }
+.food-card-body,.journal-body { padding:16px; display:grid; gap:8px; }
+.food-place { display:flex; align-items:center; flex-wrap:wrap; justify-content:space-between; gap:6px; border-top:1px solid var(--line); padding-block:7px; }
+.food-place small { display:block; color:var(--muted); }
+.food-card .facts { margin:0; }
+.journal-day { margin-bottom:18px; }
+.journal-day>h2 { margin-bottom:8px; text-transform:capitalize; }
+.journal-rating { color:var(--accent-ink); }
+.journal-summary { margin-top:18px; }
+.journal-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.journal-metrics div { border-top:1px solid var(--line); padding-top:9px; }
+.journal-metrics strong,.journal-metrics span { display:block; }
+.journal-metrics strong { font-size:1.3rem; }
+.journal-metrics span { font-size:.86rem; color:var(--muted); }
+.journal-body .button { justify-self:start; }
+.journal-body p { margin:0; }
+
+.map-plot { overflow:hidden; min-height:300px; background-size:26px 26px; }
+.map-itinerary { max-height:320px; overflow:auto; padding:3px 3px 3px 8px; }
+.map-pin.map-favorite::before { border-color:#ffa659; }
+.map-pin.selected::before { box-shadow:0 0 0 4px var(--accent); }
+.map-card .control-grid { margin-top:10px; }
+.transport-lead,.emergency-banner { border-radius:18px; background:#184638; color:#fff; padding:17px; display:grid; gap:12px; margin-bottom:14px; }
+.transport-lead p,.transport-lead .eyebrow { color:#e3f0e5; }
+.transport-lead h2 { margin:.2rem 0 .4rem; }
+.emergency-banner h2 { margin-bottom:8px; }
+.emergency-banner .button { margin:0 4px 4px 0; }
+.driver-message { padding:10px 12px; border-radius:10px; background:var(--surface-2); font-weight:570; }
+.safety-bottom { margin-top:14px; }
+.exchange-shell { display:grid; gap:12px; }
+.exchange-heading { margin-bottom:6px; min-width:0; }
+.exchange-heading h1 { margin:3px 0 6px; font-size:clamp(2.3rem,7vw,3.65rem); letter-spacing:-.063em; line-height:1; }
+.exchange-heading p { max-width:62ch; }
+.exchange-heading .eyebrow { color:var(--primary); }
+.exchange-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; }
+.exchange-card,.exchange-review,.exchange-footer { padding:clamp(15px,3vw,22px); border:1px solid var(--line); border-radius:19px; background:var(--surface); min-width:0; }
+.exchange-card h2,.exchange-review h2 { margin-bottom:10px; }
+.exchange-card .actions { margin-block:9px; }
+.exchange-summary { font-size:.86rem; white-space:pre-wrap; overflow-wrap:anywhere; }
+.exchange-review { border-color:var(--primary); }
+.exchange-review .actions { margin-top:12px; }
+.exchange-conflicts { display:grid; gap:8px; margin-top:10px; }
+.exchange-conflicts fieldset { min-width:0; border:1px solid var(--line); border-radius:10px; padding:7px 10px; }
+.exchange-conflicts legend { overflow-wrap:anywhere; color:var(--primary); font-weight:650; }
+.exchange-conflicts label { display:flex; min-height:44px; align-items:center; gap:8px; }
+.exchange-conflicts input { accent-color:var(--primary); }
+.exchange-conflicts small { display:block; color:var(--muted); }
+.exchange-footer { display:flex; flex-wrap:wrap; gap:7px 13px; align-items:center; background:var(--surface-2); }
+
+@media (min-width:720px) { .exchange-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+@media (min-width:600px) {
+  .emergency-banner { grid-template-columns:1fr 1fr; }
+  .journal-metrics { grid-template-columns:repeat(4,minmax(0,1fr)); }
+}
+@media (min-width:1010px) {
+  .sidebar { overflow:auto; }
+  .navigation { margin-top:27px; }
+  .side-navigation { display:grid; gap:4px; padding-top:12px; margin-top:12px; margin-bottom:14px; border-top:1px solid var(--line); }
+  .side-navigation a { min-height:41px; display:flex; align-items:center; gap:10px; padding:7px 11px; border-radius:9px; color:var(--muted); text-decoration:none; font-size:.87rem; font-weight:620; }
+  .side-navigation a:hover,.side-navigation a[aria-current] { background:var(--surface-2); color:var(--primary); }
+  .side-navigation a svg { width:18px; }
+  .pl-today-hero { min-height:230px; }
+}
+@media (max-width:560px) {
+  .topbar { min-height:73px; }
+  .pl-today-hero { min-height:166px; }
+  .food-filter .filter-check { min-width:0; }
+}
+@media print {
+  .sidebar,.topbar,.skip,.toast,.journal-nav,.journal-summary button,.journal-body button,.page-head button { display:none!important; }
+  .workspace { margin:0!important; padding:0!important; }
+  .journal-card,.journal-summary { break-inside:avoid; }
+}
