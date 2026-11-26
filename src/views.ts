@@ -1,6 +1,7 @@
 import { alerts, checklist, rainPlans, sources, transport } from './data'
 import { connectionGuide, placeResearch } from './guide-view'
 import { localEvents, placeGuides } from './guide-data'
+import { eventProgramme, eventSources } from './event-markup'
 import { placePhotos } from './place-photos'
 import type { Place, State } from './types'
 import { activeActivities, allPlaces, button, city, dateShort, dayOptions, e, icon, kind, mapSearch, option, sourceLink, title } from './ui'
@@ -49,7 +50,7 @@ export function placeList(state: State, view: PlaceView) {
 
 function eventList(view: PlaceView) {
   const events = localEvents.filter(item => item.start <= '2026-12-11' && item.end >= '2026-12-04' && (view.city === 'all' || item.city === view.city))
-  return `<p class="result-count" aria-live="polite">${events.length} eventos durante la estancia · <a href="#eventos">Ver agenda local completa</a></p><div class="places-grid explore-grid">${events.map(item => `<article class="card explore-event-card"><span class="tag ${item.status === 'confirmed' ? 'ok' : ''}">${e(item.price === 'gratis' ? 'Gratis' : item.price === 'pago' ? 'De pago' : 'Precio por confirmar')}</span><p class="locality">${city[item.city]} · ${e(item.start)}${item.end !== item.start ? ` – ${e(item.end)}` : ''}${item.time ? ` · ${e(item.time)}` : ''}</p><h2>${e(item.name)}</h2><p>${e(item.detail)}</p><p class="fineprint">Comprobado ${e(item.verified)} · detalles y fuente en agenda local</p><div class="actions">${button('Añadir al plan','event-add','plus','primary compact',item.id)}${sourceLink(item.source)}</div></article>`).join('')}</div>`
+  return `<p class="result-count" aria-live="polite">${events.length} eventos durante la estancia · <a href="#eventos">Ver agenda local completa</a></p><div class="places-grid explore-grid">${events.map(item => `<article class="card explore-event-card"><span class="tag ${item.status === 'confirmed' ? 'ok' : ''}">${e(item.price === 'gratis' ? 'Gratis' : item.price === 'pago' ? 'De pago' : 'Precio por confirmar')}</span><p class="locality">${city[item.city]} · ${e(item.start)}${item.end !== item.start ? ` – ${e(item.end)}` : ''}${item.time ? ` · ${e(item.time)}` : ''}</p><h2>${e(item.name)}</h2><p>${e(item.detail)}</p>${eventProgramme(item)}<p class="fineprint">Comprobado ${e(item.verified)} · detalles y fuente en agenda local</p><div class="actions">${button('Añadir al plan','event-add','plus','primary compact',item.id)}${eventSources(item)}</div></article>`).join('')}</div>`
 }
 
 function geographicMap(state: State, view: PlaceView) {

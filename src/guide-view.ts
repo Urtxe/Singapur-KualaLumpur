@@ -1,5 +1,6 @@
 import { days } from './data'
 import { connections, dishes, localEvents, placeGuides, safety } from './guide-data'
+import { eventProgramme, eventSources } from './event-markup'
 import type { Place, State } from './types'
 import { allPlaces, button, city, cityHotel, dayOptions, directDistance, e, getPlace, icon, option, sourceLink, title } from './ui'
 
@@ -51,13 +52,13 @@ export function eventsView() {
     <label class="field"><span>Categoría</span><select data-action="event-category">${options(Array.from(new Set(localEvents.map(item => item.category))).sort(),eventFilters.category,'Todas')}</select></label>
     <label class="field"><span>Precio</span><select data-action="event-price">${option('all','Todos',eventFilters.price)}${Object.entries(eventPrice).map(([value,name]) => option(value,name,eventFilters.price)).join('')}</select></label>
   </div>`
-  return `${title('Agenda local', 'Eventos y cambios previstos durante el viaje.')}${filters}
+  return `${title('Agenda local', 'Qué ocurre, a qué hora, dónde verlo y qué entrada necesitas. Horarios en hora local; comprueba cambios en la fuente oficial.')}${filters}
     <p class="result-count" aria-live="polite">${matches.length} resultados</p>
     <div class="reference-grid">${matches.map(item => `<article class="card guide-card">
       <div class="tags"><span class="tag ${item.status === 'confirmed' ? 'ok' : item.status === 'mobility' ? 'warm' : ''}">${eventStatus[item.status]}</span><span class="tag">${eventPrice[item.price]}</span></div>
       <h2>${e(item.name)}</h2><p class="locality">${icon('eventos')} ${city[item.city]} · ${e(item.category)}${item.time ? ` · ${e(item.time)}` : ''}</p>
-      <p>${e(item.detail)}</p><p class="fineprint">Comprobación ${e(item.verified)}</p>
-      <div class="actions">${button('Añadir al plan','event-add','plus','',item.id)}${sourceLink(item.source)}</div>
+      <p>${e(item.detail)}</p>${eventProgramme(item)}<p class="fineprint">Comprobación ${e(item.verified)}</p>
+      <div class="actions">${button('Añadir al plan','event-add','plus','',item.id)}${eventSources(item)}</div>
     </article>`).join('') || '<p class="card empty">No hay resultados con estos filtros. Prueba otra fecha o ciudad.</p>'}</div>`
 }
 

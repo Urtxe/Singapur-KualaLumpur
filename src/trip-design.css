@@ -121,6 +121,12 @@ summary { font-weight: 750; }
 .exchange-choices input { accent-color: var(--primary); }
 .exchange-shell #exchange-review:empty { display: none; }
 .exchange-shell .exchange-advanced .actions { margin-block: 8px; }
+.event-program { min-width: 0; margin-block: 12px; padding: 11px 12px; border-radius: 12px; background: var(--surface-2); }
+.event-program h3 { margin: 0 0 8px; font-size: .9rem; }
+.event-program ul { display: grid; gap: 7px; padding: 0; margin: 0; list-style: none; }
+.event-program li { display: grid; grid-template-columns: minmax(112px,.8fr) minmax(0,1.2fr); gap: 8px; align-items: start; font-size: .82rem; line-height: 1.35; }
+.event-program li strong { color: var(--primary); font-variant-numeric: tabular-nums; }
+.event-program li span { overflow-wrap: anywhere; }
 
 @media (min-width: 700px) {
   .more-layout { grid-template-columns: repeat(2,minmax(0,1fr)); }
@@ -129,6 +135,10 @@ summary { font-weight: 750; }
   .today-heading { min-height: 153px; }
   .today-date-row label { flex: 0 1 260px; }
   .today-alert, .today-list { grid-column: 1 / -1; }
+}
+
+@media (max-width: 390px) {
+  .event-program li { grid-template-columns: 1fr; gap: 1px; }
 }
 @media (min-width: 1010px) {
   .topbar { justify-content: flex-end; min-height: 56px; }

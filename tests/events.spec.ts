@@ -1,0 +1,37 @@
+import { expect, test } from '@playwright/test'
+
+const base = 'http://127.0.0.1:4173/asia-trip/'
+
+test('la agenda local muestra horarios de espectáculos, accesos y fuentes oficiales', async ({ page }) => {
+  await page.goto(`${base}#eventos`)
+
+  const wonderland = page.locator('.guide-card').filter({ has: page.getByRole('heading', { name: 'Christmas Wonderland en Gardens by the Bay', exact: true }) })
+  await expect(wonderland).toContainText('sábado 5 dic la entrada está en tarifa Super Peak')
+  await expect(wonderland).toContainText('19:45–20:02')
+  await expect(wonderland).toContainText('21:05–21:20')
+  await expect(wonderland.getByRole('link', { name: 'Programa completo del 5 dic (PDF)' })).toHaveAttribute('href', /Christmas-Wonderland2026-Festive-Entertainment/)
+
+  const santa = page.locator('.guide-card').filter({ has: page.getByRole('heading', { name: 'Encuentro con Santa · Flower Dome', exact: true }) })
+  await expect(santa).toContainText('La organización aún no ha publicado las horas del encuentro')
+
+  const lake = page.locator('.guide-card').filter({ has: page.getByRole('heading', { name: 'Lake Symphony · fuentes musicales de KLCC', exact: true }) })
+  await expect(lake).toContainText('Luz y sonido · 20:00–20:10')
+  await expect(lake).toContainText('Solo luz · 19:30, 20:30 y 21:30')
+})
+
+test('el plan del 5 dic explica la entrada y los horarios de las luces', async ({ page }) => {
+  await page.goto(`${base}#agenda`)
+  await page.getByLabel('Día de la agenda').fill('2026-12-05')
+  await page.getByLabel('Día de la agenda').dispatchEvent('change')
+
+  const dinner = page.locator('.pl-activity[data-item="sg-early-dinner"]')
+  await expect(dinner).toContainText('17:00')
+  const lights = page.locator('.pl-activity[data-item="rhapsody"]')
+  await expect(lights).toContainText('18:30')
+  await expect(lights).toContainText('sesión (18:30, 19:30, 20:30 o 21:30) marca cuándo acceder')
+  await expect(lights).toContainText('S$13 anticipada / S$16 el mismo día')
+  await expect(lights).toContainText('19:45–20:02')
+  await expect(lights).toContainText('21:05–21:20')
+  await expect(lights).toContainText('elegid una sola')
+  await expect(lights).toContainText('World of Plants')
+})
