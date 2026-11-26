@@ -127,7 +127,6 @@ function actionSelector(element: HTMLElement | null) {
 
 function render(focusPage = false) {
   const section = route()
-  document.title = section === 'inicio' ? 'Asia Trip 2026' : `${labels[section]} · Asia Trip 2026`
   document.documentElement.dataset.route = section
   document.querySelectorAll<HTMLElement>('[data-route]').forEach(link => {
     if (link.dataset.route === navigationSection(section)) link.setAttribute('aria-current', 'page')
