@@ -73,7 +73,7 @@ function placeName(placeId: string, places: Place[]) { return places.find(place 
 function activityCard(item: Activity, index: number, count: number, app: AppContext, places: Place[]) {
   const place = places.find(entry => entry.id === item.placeId)
   const fixed = !!item.fixed || !!item.flight || item.status === 'done'
-  const image = place?.photo && /^(?:\/|\.\/|\.\.\/)/.test(place.photo) ? `<img class="pl-place-photo" src="${escapeAttr(place.photo)}" alt="" loading="lazy">` : ''
+  const image = place?.photo && /^(?:\/|\.\/|\.\.\/)/.test(place.photo) ? `<img class="pl-place-photo" src="${escapeAttr(place.photo)}" alt="" width="54" height="54" loading="lazy">` : ''
   return `<article class="pl-activity${item.status === 'done' ? ' is-done' : ''}${item.priority === 'pausa' ? ' is-rest' : ''}" ${attrs(item)} draggable="${!fixed}">
     <div class="pl-rail">${fixed ? '<span class="pl-grip pl-grip-locked" aria-hidden="true">•</span>' : `<button class="pl-grip" type="button" aria-label="Arrastrar ${esc(item.title)}" data-pl-action="grab" data-id="${escapeAttr(item.id)}">⠿</button>`}<span class="pl-time">${item.time ? esc(item.time) : '— —'}<small>${item.duration} min</small></span></div>
     <div class="pl-activity-body">${image}<div class="pl-meta"><span>${esc(item.zone || place?.area || 'Sin zona')}</span>${item.flight === 'confirmed' ? '<b class="pl-fixed">VUELO CONFIRMADO</b>' : item.flight === 'provisional' ? '<b class="pl-plan-b">VUELO PROVISIONAL</b>' : ''}${item.fixed ? '<b class="pl-fixed">RESERVA FIJA</b>' : ''}${item.plan === 'B' ? '<b class="pl-plan-b">PLAN B</b>' : ''}</div><div class="pl-title-row"><h3>${esc(item.title || 'Actividad sin título')}</h3>${fixed ? `<span class="pl-complete-lock">${item.status === 'done' ? 'Realizada' : 'Protegida'}</span>` : `<button type="button" class="pl-status${item.status === 'done' ? ' is-done' : ''}" aria-label="${item.status === 'done' ? 'Marcar pendiente' : 'Marcar realizada'}: ${esc(item.title)}" data-pl-action="toggle-done" data-id="${escapeAttr(item.id)}">${item.status === 'done' ? '✓' : '○'}</button>`}</div>
@@ -94,7 +94,7 @@ function formHTML(state: State, date: string, item?: Activity, places: Place[] =
   const chosen = current.plan === 'B' ? 'B' : 'A'
   const advanced = (editing && !!(current.zone || current.category || current.fixed || current.estimatedPrice != null || current.actualPrice != null || current.lat != null || current.lon != null || current.address || current.transport || current.officialUrl || current.mapsUrl || current.detail || current.booking || current.notes || current.access || current.alternate || current.food || current.tickets || current.fromHotel || current.fromPrevious))
   return `<form class="pl-form" data-pl-form="activity"><input type="hidden" name="id" value="${escapeAttr(current.id)}"><input type="hidden" name="date" value="${escapeAttr(current.date)}"><div class="pl-form-grid">
-    ${field('Nombre','title',current.title,'text','required maxlength="200" autofocus')}<div class="pl-quick-row">${field('Hora (opcional)','time',current.time,'time')}${field('Duración (opcional)','duration',current.duration ?? '','number','min="1" max="1440" placeholder="60"')}</div>
+    ${field('Nombre','title',current.title,'text','required maxlength="200"')}<div class="pl-quick-row">${field('Hora (opcional)','time',current.time,'time')}${field('Duración (opcional)','duration',current.duration ?? '','number','min="1" max="1440" placeholder="60"')}</div>
     <label class="pl-field pl-quick-place"><span>Lugar asociado (opcional)</span><select name="placeId">${placeOpts}</select></label>
     <div class="pl-quick-type" aria-label="Tipo de actividad">${[['visita','Visita'],['comida','Comida'],['pausa','Descanso'],['traslado','Traslado'],['custom','Otra']].map(([key,label]) => `<button type="button" class="pl-type${(current.category === key || (!current.category && key === 'custom')) ? ' is-active' : ''}" data-pl-action="quick-type" data-type="${key}">${label}</button>`).join('')}<input type="hidden" name="category" value="${escapeAttr(current.category ?? 'custom')}"></div>
     <details class="pl-advanced"${advanced ? ' open' : ''}><summary>Detalles avanzados</summary><div class="pl-form-grid">
@@ -175,7 +175,8 @@ function bindDialog(dialog: HTMLDialogElement, app: AppContext) {
     if (input) input.value = target.dataset.type ?? 'custom'
     form?.querySelectorAll('.pl-type').forEach(button => button.classList.toggle('is-active', button === target))
   }, { signal: controller.signal })
-  dialog.querySelector<HTMLInputElement>('[name="title"]')?.focus()
+  // A touch device should open the form before showing its keyboard.
+  if (matchMedia('(pointer: fine)').matches) dialog.querySelector<HTMLInputElement>('[name="title"]')?.focus({ preventScroll: true })
 }
 
 function removeActivity(app: AppContext, id: string, action: 'delete' | 'archive') {
@@ -363,7 +364,10 @@ function bindPlanner(element: HTMLElement, app: AppContext, selectedMode?: Plann
     const date = app.selectedDate()
     const state = app.getState()
     const item = state.activities.find(entry => entry.id === id) ?? (state.trash ?? []).find(entry => entry.id === id)
-    if (action === 'new') openActivity(app, { date })
+    if (action === 'new') {
+      target.focus({ preventScroll: true })
+      openActivity(app, { date })
+    }
     else if (action === 'new-idea') openActivity(app, { date: '' })
     else if (action === 'edit' && item) openActivity(app, item)
     else if (action === 'up') moveInDay(app, id, -1)

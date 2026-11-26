@@ -23,7 +23,7 @@
 .explore-place { padding:0; overflow:hidden; }
 .explore-photo-wrap { position:relative; background:var(--surface-2); }
 .explore-photo { display:block; width:100%; height:auto; aspect-ratio:16/8.2; object-fit:cover; }
-.explore-photo-wrap .favorite { position:absolute; inset-block-start:10px; inset-inline-end:10px; color:#152647; background:#fff; box-shadow:0 2px 10px #0a152933; }
+.explore-photo-wrap .favorite { position:absolute; inset-block-start:10px; inset-inline-end:10px; color:var(--primary); background:var(--surface); box-shadow:var(--shadow); }
 .explore-place-top { display:flex; align-items:center; gap:8px; }
 .explore-place-top .favorite { margin-inline-start:auto; }
 .explore-place-body { display:grid; gap:8px; padding:13px 15px 15px; }
@@ -49,7 +49,7 @@
 .explore-map-intro p { max-width:64ch; margin:4px 0; color:var(--muted); }
 .explore-map-intro .actions { margin:0; }
 .explore-map-card .map-plot {
-  --map-ground:#e6e9f4; --map-landmark:#dcd3ef; --map-water:#c4d4f3; --map-road:#fffdfb;
+  --map-ground:#ead5bc; --map-landmark:#dcbb9a; --map-water:#b9cfca; --map-road:#fae7d3;
   min-height:clamp(280px,70vw,460px); border-radius:15px; background-color:var(--map-ground);
   background-image:radial-gradient(ellipse at 48% 56%,var(--map-landmark) 0 11%,transparent 11.5%),
     radial-gradient(ellipse at 18% 20%,var(--map-landmark) 0 12%,transparent 12.5%),
@@ -62,7 +62,7 @@
     linear-gradient(145deg,transparent 70%,var(--map-road) 70.5% 71%,transparent 71.5%);
 }
 :root[data-theme="dark"] .explore-map-card .map-plot {
-  --map-ground:#242b48; --map-landmark:#3e355b; --map-water:#32446f; --map-road:#4d5273;
+  --map-ground:#472f34; --map-landmark:#5a3b3e; --map-water:#395257; --map-road:#745550;
 }
 .explore-map-card .map-north { top:12px; left:12px; }
 .explore-map-card .map-itinerary { max-height:240px; }

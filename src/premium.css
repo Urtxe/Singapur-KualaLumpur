@@ -20,13 +20,13 @@ body { font-family: system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-s
 .home-extras details summary { min-height:44px; }
 .home-extras details[open] summary { margin-bottom:8px; }
 
-.pl-today-hero { color:#fff!important; background:linear-gradient(90deg,#222c52eb,#352a56b2 48%,#422e5d28),url('/cover.webp') center 56% / cover no-repeat,#222c52!important; min-height:184px; align-items:end!important; }
-.pl-today-hero[data-city="kl"], .pl-today-hero.kl { background:linear-gradient(90deg,#101928eb,#122637a0 44%,#142d4222),url('/kuala-lumpur.webp') center 47% / cover no-repeat,#163042!important; }
+.pl-today-hero { color:#fff!important; background:linear-gradient(90deg,#4d2029eb,#4d2029b2 48%,#4d202928),url('/cover.webp') center 56% / cover no-repeat,var(--photo-shade)!important; min-height:184px; align-items:end!important; }
+.pl-today-hero[data-city="kl"], .pl-today-hero.kl { background:linear-gradient(90deg,#361924eb,#4d2029a0 44%,#4d202922),url('/kuala-lumpur.webp') center 47% / cover no-repeat,var(--photo-shade)!important; }
 .pl-today-hero .pl-kicker,.pl-today-hero p { color:#f7f4dc!important; }
 .pl-today-hero h1 { font-size:clamp(2.5rem,8vw,4.85rem)!important; line-height:.98; margin-block:5px!important; font-weight:740; }
 .pl-today-hero>div { min-width:0; }
-.pl-today-hero .pl-add { background:#fff;color:#202849!important; border-color:#fff; flex:none; white-space:normal; }
-.pl-today-hero .pl-add:hover { background:#edf0f9; }
+.pl-today-hero .pl-add { background:var(--banner-ink);color:#381f25!important; border-color:var(--banner-ink); flex:none; white-space:normal; }
+.pl-today-hero .pl-add:hover { background:#f2d6a5; }
 .pl-activity .pl-grip { touch-action:none; }
 .pl-hero .pl-add { white-space:nowrap; }
 

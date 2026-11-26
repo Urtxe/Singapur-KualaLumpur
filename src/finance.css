@@ -63,7 +63,7 @@
 .finance-bar-row { display: grid; grid-template-columns: minmax(5rem, 1fr) minmax(3rem, 2fr) auto; align-items: center; gap: .6rem; font-size: .8rem; }
 .finance-bar-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .finance-bar-track { height: 8px; border-radius: 8px; background: var(--line); overflow: hidden; }
-.finance-bar-track i { display: block; height: 100%; border-radius: inherit; background: #528dcb; }
+.finance-bar-track i { display: block; height: 100%; border-radius: inherit; background: var(--primary); }
 .finance-bar-row b { font-size: .78rem; }
 .finance-wallets { display: grid; grid-template-columns: repeat(2,1fr); gap: .7rem; margin-bottom: .75rem; }
 .finance-wallets article { display: grid; gap: .3rem; padding: .8rem; border-radius: 12px; background: color-mix(in srgb, var(--line) 28%, transparent); }

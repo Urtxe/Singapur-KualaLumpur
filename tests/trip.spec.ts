@@ -166,20 +166,26 @@ test('explicitly restores a deleted note from a complete backup', async ({ page 
   await expect(page.getByText('Recuerdo de la copia',{exact:true})).toBeVisible();
 });
 
-test('switches between Normal, Noche and Sistema and remembers the chosen theme', async ({ page }) => {
+test('switches from the home header and remembers Normal, Noche and Sistema', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
-  await page.goto(`${base}#mas`);
+  await page.goto(`${base}#inicio`);
+  const header = page.getByRole('banner');
+  await header.getByRole('button', { name: 'Activar modo noche' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await header.getByRole('button', { name: 'Activar modo normal' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.getByRole('link', { name: 'Más', exact: true }).click();
   const root = page.locator('html');
   const appearance = page.getByRole('group', { name: 'Apariencia' });
   const night = appearance.getByRole('button', { name: 'Noche' });
   const normal = appearance.getByRole('button', { name: 'Normal' });
   const system = appearance.getByRole('button', { name: 'Sistema' });
 
-  await expect(system).toHaveAttribute('aria-pressed', 'true');
+  await expect(normal).toHaveAttribute('aria-pressed', 'true');
   await expect(root).toHaveAttribute('data-theme', 'light');
   await night.click();
   await expect(root).toHaveCSS('color-scheme', 'dark');
-  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#15192e');
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#25171d');
   await page.reload();
   await expect(night).toHaveAttribute('aria-pressed', 'true');
   await expect(root).toHaveAttribute('data-theme', 'dark');
@@ -187,7 +193,7 @@ test('switches between Normal, Noche and Sistema and remembers the chosen theme'
   await page.emulateMedia({ colorScheme: 'dark' });
   await normal.click();
   await expect(root).toHaveCSS('color-scheme', 'light');
-  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#f8f4ef');
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#eac9af');
   await page.getByRole('link', { name: 'Explorar', exact: true }).click();
   await expect(root).toHaveAttribute('data-theme', 'light');
   await page.getByRole('link', { name: 'Más', exact: true }).click();

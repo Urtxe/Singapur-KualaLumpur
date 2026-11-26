@@ -31,11 +31,13 @@ root.innerHTML = `
   </aside>
   <div class="workspace">
     <header class="topbar"><a class="mobile-brand" href="#inicio"><span class="brand-icon">${icon('compass')}</span><strong>Asia Trip</strong></a>
-      <a href="#offline" id="offline-status" class="offline-status" aria-label="Diagnóstico offline">${icon('wifi')} <span role="status"></span></a></header>
+      <div class="top-actions"><a href="#offline" id="offline-status" class="offline-status" aria-label="Diagnóstico offline">${icon('wifi')} <span role="status"></span></a>
+        <button type="button" class="button theme-shortcut" data-action="toggle-theme"></button></div></header>
     <main id="content" tabindex="-1"></main>
   </div>
   <dialog id="modal" aria-labelledby="dialog-title"></dialog><div class="toast" role="status" aria-live="polite" hidden></div>`
 
+const themeShortcut = root.querySelector<HTMLButtonElement>('.theme-shortcut')!
 const content = document.querySelector<HTMLElement>('#content')!
 const modal = document.querySelector<HTMLDialogElement>('#modal')!
 const toast = document.querySelector<HTMLElement>('.toast')!
@@ -116,6 +118,9 @@ function applyTheme() {
   const rootElement = document.documentElement
   if (rootElement.dataset.theme === effectiveTheme) return
   rootElement.dataset.theme = effectiveTheme
+  const night = effectiveTheme === 'dark'
+  themeShortcut.setAttribute('aria-label', night ? 'Activar modo normal' : 'Activar modo noche')
+  themeShortcut.innerHTML = `${icon(night ? 'sun' : 'moon')}<span>${night ? 'Normal' : 'Noche'}</span>`
   document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')!.content = getComputedStyle(rootElement).getPropertyValue('--page').trim()
 }
 
@@ -278,6 +283,7 @@ function show(title: string, html: string) {
   if (!modal.open) returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
   modal.innerHTML = dialogContent(title, `<p class="modal-feedback storage-warning" role="status" hidden></p>${html}`)
   if (!modal.open) modal.showModal()
+  modal.scrollTop = 0
   return modal
 }
 
@@ -400,6 +406,9 @@ root.addEventListener('click', event => {
     case 'locate': locate(); break
     case 'copy': void copyAddress(id); break
     case 'emergency': go('emergencias'); break
+    case 'toggle-theme':
+      commit({ ...state, theme: document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark' })
+      break
     case 'theme':
       if ((id === 'light' || id === 'dark' || id === 'auto') && id !== state.theme) commit({ ...state, theme: id })
       break
@@ -515,10 +524,20 @@ modal.addEventListener('close', () => {
   if (modal.open) return
   routeContext = undefined
   modal.replaceChildren()
-  if (returnFocus?.isConnected) returnFocus.focus()
+  const opener = returnFocus
   returnFocus = null
+  if (opener?.isConnected) opener.focus({ preventScroll: true })
+  else if (opener?.matches('.pl-add, .pl-add-float')) {
+    content.querySelector<HTMLElement>(`.${opener.matches('.pl-add-float') ? 'pl-add-float' : 'pl-add'}`)?.focus({ preventScroll: true })
+  }
 })
-window.addEventListener('hashchange', () => render(true))
+window.addEventListener('hashchange', () => {
+  if (modal.open) {
+    returnFocus = null
+    modal.close()
+  }
+  render(true)
+})
 function connectionChanged() { if (route() === 'inicio' && !modal.open) render(); else updateTopbar() }
 window.addEventListener('online', connectionChanged)
 window.addEventListener('offline', connectionChanged)

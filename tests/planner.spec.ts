@@ -23,6 +23,41 @@ test.describe('Planificador y HOY', () => {
     await expect(activity.getByRole('button', { name: 'Marcar realizada: Pausa junto al río' })).toBeVisible()
   })
 
+  test('abre y cierra el formulario centrado sin desplazar el plan en un móvil compacto', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'El formulario táctil se comprueba en los perfiles de móvil.')
+    await page.setViewportSize({ width: 320, height: 568 })
+    await page.goto(`${baseURL}#inicio`)
+    await page.getByRole('link', { name: 'Planes', exact: true }).tap()
+    const add = page.getByRole('button', { name: 'Añadir actividad', exact: true })
+    const dialog = page.getByRole('dialog', { name: 'Nueva actividad' })
+    await page.evaluate(() => window.scrollTo(0, 100))
+    const before = await page.evaluate(() => window.scrollY)
+    await add.tap()
+    await expect(dialog.getByRole('button', { name: 'Cerrar', exact: true })).toBeFocused()
+    await expect(dialog.getByLabel('Nombre')).toHaveCSS('font-size', '16px')
+    await expect(dialog.getByRole('button', { name: 'Guardar actividad' })).toBeInViewport({ ratio: 1 })
+    await dialog.getByText('Detalles avanzados', { exact: true }).tap()
+    const size = await dialog.evaluate(element => {
+      const { left, right, top, bottom } = element.getBoundingClientRect()
+      return { left, right, top, bottom, width: innerWidth, height: innerHeight, horizontalScroll: element.scrollWidth - element.clientWidth }
+    })
+    expect(size.left).toBeGreaterThanOrEqual(10)
+    expect(size.width - size.right).toBeCloseTo(size.left, 0)
+    expect(size.top).toBeGreaterThanOrEqual(0)
+    expect(size.bottom).toBeLessThanOrEqual(size.height)
+    expect(size.horizontalScroll).toBeLessThanOrEqual(1)
+    await dialog.getByRole('button', { name: 'Cancelar', exact: true }).tap()
+    await expect(dialog).toBeHidden()
+    await expect(add).toBeFocused()
+    expect(await page.evaluate(() => window.scrollY)).toBe(before)
+
+    await add.tap()
+    await expect(dialog).toBeVisible()
+    await page.goBack()
+    await expect(page.getByRole('heading', { name: 'Hoy', exact: true })).toBeVisible()
+    await expect(dialog).toBeHidden()
+  })
+
   test('protege los vuelos confirmados frente a edición y reordenación', async ({ page }) => {
     await page.goto(`${baseURL}#agenda`)
     await page.getByLabel('Día de la agenda').fill('2026-12-04')
