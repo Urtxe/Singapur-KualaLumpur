@@ -26,11 +26,11 @@ const navLink = (item: Route) => `<a href="#${item}" data-route="${item}">${icon
 root.innerHTML = `
   <a class="skip" href="#content">Saltar al contenido</a>
   <aside class="sidebar">
-    <a class="brand" href="#inicio"><span class="brand-icon">${icon('compass')}</span><span><strong>Asia Trip</strong><small>Singapur · Kuala Lumpur</small></span></a>
+    <a class="brand" href="#inicio"><span class="brand-icon">${icon('compass')}</span><span><strong>SNG-KLL</strong><small>Singapur · Kuala Lumpur</small></span></a>
     <nav class="navigation" aria-label="Navegación principal">${primaryRoutes.map(navLink).join('')}</nav>
   </aside>
   <div class="workspace">
-    <header class="topbar"><a class="mobile-brand" href="#inicio"><span class="brand-icon">${icon('compass')}</span><strong>Asia Trip</strong></a>
+    <header class="topbar"><a class="mobile-brand" href="#inicio"><span class="brand-icon">${icon('compass')}</span><strong>SNG-KLL</strong></a>
       <div class="top-actions"><a href="#offline" id="offline-status" class="offline-status" aria-label="Diagnóstico offline">${icon('wifi')} <span role="status"></span></a>
         <button type="button" class="button theme-shortcut" data-action="toggle-theme"></button></div></header>
     <main id="content" tabindex="-1"></main>

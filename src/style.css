@@ -2,6 +2,8 @@
   color-scheme: light;
   --page: #eac9af;
   --surface: #fae6d3;
+  --paper: #fae6d3cb;
+  --wallpaper-opacity: .36;
   --surface-2: #efd4bd;
   --ink: #381f25;
   --muted: #644237;
@@ -29,6 +31,8 @@
   color-scheme: dark;
   --page: #25171d;
   --surface: #352128;
+  --paper: #352128ca;
+  --wallpaper-opacity: .24;
   --surface-2: #452c34;
   --ink: #ffead5;
   --muted: #dfc0ad;

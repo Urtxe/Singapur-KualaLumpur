@@ -6,6 +6,11 @@
 }
 
 body { font-family: Manrope,system-ui,sans-serif; font-weight: 500; }
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: url('/flor-orquidea-hibisco.webp') center top / 340px repeat;
+  opacity: var(--wallpaper-opacity);
+}
 .page-head h1, .page-heading h1 { font: 800 clamp(2.15rem,7vw,3.3rem)/1.08 Manrope,system-ui,sans-serif; letter-spacing: -.06em; }
 .page-head { margin-bottom: 1rem; }
 .page-head p:empty { display: none; }
@@ -34,16 +39,6 @@ summary { font-weight: 750; }
 .today-shell-v3 { display: grid; gap: 12px; }
 .today-heading { position: relative; display: grid; align-items: center; isolation: isolate; min-width: 0; min-height: 140px; padding: 16px 18px; border-radius: 20px; color: var(--banner-ink); overflow: hidden; background: var(--banner); }
 .today-heading::before { position: absolute; z-index: -1; inset: 0; content: ''; background: radial-gradient(ellipse at 100% 0%,#c2794166,transparent 72%), repeating-linear-gradient(45deg,transparent 0 12px,#f5bc6c30 12px 13px); }
-.today-heading[data-city=""]::after, .today-wallet::before, .more-screen > .page-head::before {
-  position: absolute; z-index: -1; inset-block: 0; inset-inline-end: 0; content: ''; width: min(50%, 190px);
-  background: url('/flor-orquidea-hibisco.webp') right center / contain no-repeat;
-  pointer-events: none;
-}
-.today-heading[data-city=""]::after { opacity: .85; }
-.today-wallet, .more-screen > .page-head { position: relative; isolation: isolate; }
-.today-wallet::before { opacity: .24; inset-inline-end: 10px; }
-.more-screen > .page-head { min-height: 76px; display: flex; align-items: center; }
-.more-screen > .page-head::before { opacity: .9; width: min(45%, 135px); inset-inline-end: 12px; }
 .today-heading[data-city="sg"]::before { background: linear-gradient(90deg,var(--photo-shade) 5%,#4d2029e8 31%,#4d202933 82%),url('/cover.webp') 80% 53% / cover; }
 .today-heading[data-city="kl"]::before { background: linear-gradient(90deg,var(--photo-shade) 5%,#4d2029e8 31%,#4d202933 82%),url('/kuala-lumpur.webp') 76% 50% / cover; }
 .today-heading h1 { margin-block: 1px 2px; font-size: clamp(2.35rem,10vw,3.55rem); line-height: .98; letter-spacing: -.06em; }
@@ -53,7 +48,7 @@ summary { font-weight: 750; }
 .today-date-row label { display: flex; flex: 1 1 145px; min-width: 0; }
 .today-date-row select { width: 100%; min-width: 0; font-size: .84rem; font-weight: 700; }
 .today-date-row .button { font-size: .8rem; }
-.today-next, .today-wallet, .today-list { min-width: 0; padding: 16px 17px; background: var(--surface); border-radius: 18px; box-shadow: var(--shadow); }
+.today-next, .today-wallet, .today-list { min-width: 0; padding: 16px 17px; background: var(--paper); border-radius: 18px; box-shadow: var(--shadow); }
 .today-next:not(.empty-next) { border-inline-start: 3px solid var(--accent); }
 .today-next-line, .today-section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .today-next-line { color: var(--primary); font-weight: 800; font-size: .78rem; }
@@ -88,7 +83,7 @@ summary { font-weight: 750; }
 .today-alternative small { display: block; color: var(--muted); }
 
 .more-layout { display: grid; gap: 14px; }
-.more-group { display: grid; align-content: start; padding: 9px 15px; background: var(--surface); border-radius: 18px; }
+.more-group { display: grid; align-content: start; padding: 9px 15px; background: var(--paper); border-radius: 18px; }
 .more-group h2 { padding-block: 9px 6px; font-size: .83rem; color: var(--muted); }
 .more-group a:not(.button), .more-settings summary { display: flex; min-height: 53px; align-items: center; gap: 10px; color: var(--ink); font-weight: 750; font-size: .92rem; text-decoration: none; }
 .more-group a:not(.button) + a, .more-settings { border-top: 1px solid var(--line); }

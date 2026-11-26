@@ -17,7 +17,7 @@ function updatePrompt(worker: ServiceWorker) {
     banner.dataset.swUpdate = '';
     banner.className = 'sw-update-banner';
     banner.setAttribute('role', 'status');
-    banner.innerHTML = '<span>Hay una actualización de Asia Trip lista.</span><button type="button" data-sw-adopt>Actualizar ahora</button><button type="button" data-sw-dismiss aria-label="Cerrar aviso">×</button>';
+    banner.innerHTML = '<span>Hay una actualización de SNG-KLL lista.</span><button type="button" data-sw-adopt>Actualizar ahora</button><button type="button" data-sw-dismiss aria-label="Cerrar aviso">×</button>';
     document.body.append(banner);
     banner.querySelector('[data-sw-adopt]')?.addEventListener('click', () => {
       if (!waitingWorker) return;

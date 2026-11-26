@@ -169,6 +169,8 @@ test('explicitly restores a deleted note from a complete backup', async ({ page 
 test('switches from the home header and remembers Normal, Noche and Sistema', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto(`${base}#inicio`);
+  await expect(page).toHaveTitle('SNG-KLL');
+  await expect(page.getByRole('link', { name: /^SNG-KLL/ })).toBeVisible();
   const header = page.getByRole('banner');
   await header.getByRole('button', { name: 'Activar modo noche' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
