@@ -7,7 +7,17 @@ const eventStatus = { confirmed: 'Confirmado', recurring: 'Pendiente de confirma
 const eventPrice = { gratis: 'Gratis', pago: 'De pago', pendiente: 'Precio pendiente' }
 export const eventFilters = { city: 'all', date: '', category: 'all', price: 'all' }
 export const foodFilters = { city: 'sg', query: '', tried: false }
-const dishPhotos = new Map([['kaya-toast', 'kaya.webp'], ['nasi-lemak', 'nasi.webp']])
+const dishPhotos = new Map([
+  ['chicken-rice', 'food/chicken-rice.webp'], ['laksa-sg', 'food/laksa-sg.webp'],
+  ['satay-sg', 'food/satay-sg.webp'], ['chili-crab', 'food/chili-crab.webp'],
+  ['char-kway-teow-sg', 'food/char-kway-teow-sg.webp'], ['kaya-toast', 'kaya.webp'],
+  ['roti-prata-sg', 'food/roti-prata-sg.webp'], ['hokkien-mee', 'food/hokkien-mee.webp'],
+  ['nasi-lemak', 'nasi.webp'], ['nasi-kandar', 'food/nasi-kandar.webp'],
+  ['rendang', 'food/rendang.webp'], ['roti-canai', 'food/roti-canai.webp'],
+  ['char-kway-teow-kl', 'food/char-kway-teow-kl.webp'], ['bak-kut-teh', 'food/bak-kut-teh.webp'],
+  ['banana-leaf-rice', 'food/banana-leaf-rice.webp'], ['cendol', 'food/cendol.webp'],
+  ['teh-tarik', 'food/teh-tarik.webp'],
+])
 
 export function facts(entries: [string, string][]) {
   return `<dl class="facts">${entries.map(([label,value]) => `<div><dt>${e(label)}</dt><dd>${e(value || 'Pendiente de verificar')}</dd></div>`).join('')}</dl>`
@@ -66,7 +76,7 @@ export function foodResults(state: State) {
     const tried = state.triedDishes.includes(dish.id)
     const image = dishPhotos.get(dish.id)
     const suggestions = dish.placeIds.flatMap(id => { const place = getPlace(state,id); return place ? [place] : [] })
-    return `<article class="card food-card">${image ? `<img class="food-photo" src="${import.meta.env.BASE_URL}${image}" alt="Presentación ilustrativa de ${e(dish.name)}" width="640" height="360" loading="lazy">` : ''}
+    return `<article class="card food-card">${image ? `<img class="food-photo" src="${import.meta.env.BASE_URL}${image}" alt="Imagen ilustrativa de ${e(dish.name)}" width="640" height="360" loading="lazy">` : ''}
       <div class="food-card-body"><div class="section-line"><h2>${e(dish.name)}</h2><button type="button" class="button compact" data-action="dish-tried" data-id="${e(dish.id)}" aria-pressed="${tried}">${icon(tried ? 'check' : 'gastronomia')}${tried ? 'Probado' : 'Marcar probado'}</button></div>
       <p>${e(dish.description)}</p>${facts([['En familia', dish.family], ['Precio', dish.price]])}
       ${suggestions.map(place => `<div class="food-place"><div><b>${e(place.name)}</b><small>${e(place.area)}</small></div><div class="actions">${button(state.favorites.includes(place.id) ? 'Quitar favorito' : 'Favorito','favorite','star','compact',place.id)}${button('Añadir al plan','place-add','plus','compact',place.id)}</div></div>`).join('')}
@@ -90,7 +100,8 @@ export function connectionGuide(state: State) {
       const to = getPlace(state,item.to)
       return `<article class="card guide-card"><span class="tag ok">${city[item.city]}</span><h2>${e(item.title)}</h2>
         ${facts([['A pie',item.walking],['MRT o LRT',item.rail],['Coche',item.car],['Coste familiar',item.cost],['Para nuestro grupo',item.family]])}
-        <div class="actions">${to ? button(`Cómo llegar a ${to.name}`,'directions','lugares','compact',to.id) : ''}${from && to ? button('Copiar destino','copy','copy','compact',to.id) : ''}${sourceLink(item.source)}</div></article>`
+        <p class="fineprint">${e(item.verified)}</p>
+        <div class="actions">${to ? button(`Cómo llegar a ${to.name}`,'directions','lugares','compact',to.id) : ''}${from && to ? button('Copiar destino','copy','copy','compact',to.id) : ''}${sourceLink(item.source,item.sourceLabel)}</div></article>`
     }).join('')}</div>`
 }
 

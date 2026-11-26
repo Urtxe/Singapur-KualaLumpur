@@ -3,7 +3,8 @@ type PlacePhoto = {
   author: string
   source: string
   license: string
-  licenseUrl: string
+  licenseUrl?: string
+  file?: string
 }
 
 // Keys use the same place IDs as the itinerary and filenames in public/places.
@@ -231,5 +232,110 @@ export const placePhotos = new Map<string, PlacePhoto>([
     source: "https://commons.wikimedia.org/wiki/File:Thean_Hou_Temple,_Kuala_Lumpur-1.jpg",
     license: "CC BY-SA 4.0",
     licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+  }],
+  ['boat-quay', {
+    alt: 'Vista de los edificios históricos junto al río en Boat Quay',
+    author: 'Frank Schulenburg',
+    source: 'https://commons.wikimedia.org/wiki/File:View_of_Boat_Quay,_Singapore_(2023)-L1003669.jpg',
+    license: 'CC BY-SA 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+  }],
+  ['orchard-road', {
+    alt: 'Fachada iluminada de un centro comercial en Orchard Road',
+    author: 'Basile Morin',
+    source: 'https://commons.wikimedia.org/wiki/File:Glass_facade_of_an_illuminated_shopping_mall_at_blue_hour_with_vertical_symmetry_impression,_Orchard_Road,_Singapore.jpg',
+    license: 'CC BY-SA 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+  }],
+  ['botanic-gardens', {
+    alt: 'Templete rodeado de árboles en Singapore Botanic Gardens',
+    author: 'Basile Morin',
+    source: 'https://commons.wikimedia.org/wiki/File:Bandstand_and_green_trees_a_sunny_afternoon_with_blue_sky_at_Singapore_Botanic_Gardens.jpg',
+    license: 'CC BY-SA 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+  }],
+  ['orchid-garden', {
+    alt: 'Paseo con arcos cubiertos de vegetación en National Orchid Garden',
+    author: 'Basile Morin',
+    source: 'https://commons.wikimedia.org/wiki/File:Alley_lined_with_vegetated_arches_at_the_National_Orchid_Garden_of_Singapore.jpg',
+    license: 'CC BY-SA 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+  }],
+  ['fort-canning', {
+    alt: 'Túnel de árboles en Fort Canning Park',
+    author: 'DianaAndassova',
+    source: 'https://commons.wikimedia.org/wiki/File:Fort_Canning_Park_Tree_Tunnel.jpg',
+    license: 'CC BY-SA 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+  }],
+  ['chinatown-complex', {
+    alt: 'Fachada del mercado y centro de comida Chinatown Complex',
+    author: 'Kbseah',
+    source: 'https://commons.wikimedia.org/wiki/File:Chinatown_Complex_Market_and_Food_Centre,_exterior.jpg',
+    license: 'CC BY-SA 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+  }],
+  ['marina-barrage', {
+    alt: 'Embalse y paseo de Marina Barrage',
+    author: 'RFNirmala',
+    source: 'https://commons.wikimedia.org/wiki/File:Marina_Barrage_Dam_11Jul2026_01.jpg',
+    license: 'CC BY 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by/4.0',
+  }],
+  ['exchange-trx', {
+    alt: 'Entrada de Apple en The Exchange TRX de Kuala Lumpur',
+    author: 'LegendaryLim',
+    source: 'https://commons.wikimedia.org/wiki/File:Apple_The_Exchange_TRX,_Exterior_Night_View.jpg',
+    license: 'CC0',
+    licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+  }],
+  ['petrosains', {
+    alt: 'Coche de Fórmula 1 expuesto en Petrosains',
+    author: 'Simon_sees from Australia',
+    source: 'https://commons.wikimedia.org/wiki/File:F1_car_at_Petrosains_museum_(6349809786).jpg',
+    license: 'CC BY 2.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by/2.0',
+  }],
+  ['islamic-arts', {
+    alt: 'Exterior del Islamic Arts Museum Malaysia',
+    author: 'Chainwit',
+    source: 'https://commons.wikimedia.org/wiki/File:Islamic_Arts_Museum_Malaysia_Exterior_(May_2022)_-_img_02.jpg',
+    license: 'CC BY-SA 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+  }],
+  ['perdana-gardens', {
+    alt: 'Jardines y estanque en Perdana Botanical Gardens',
+    author: 'Renek78',
+    source: 'https://commons.wikimedia.org/wiki/File:Perdana_Botanical_Gardens_in_2023_01.jpg',
+    license: 'CC0',
+    licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+  }],
+  ['kuala-lumpur-station', {
+    alt: 'Edificio histórico de la estación de tren de Kuala Lumpur',
+    author: 'Horiuchi',
+    source: 'https://commons.wikimedia.org/wiki/File:Kuala_Lumpur_Railway_Station.jpg',
+    license: 'Dominio público',
+  }],
+  ['changi', {
+    alt: 'Interior de la terminal del aeropuerto Changi de Singapur',
+    author: 'Surangi Kasturirathne',
+    source: 'https://commons.wikimedia.org/wiki/File:Changi_Airport,_Singapore.jpg',
+    license: 'CC BY-SA 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+  }],
+  ['kul-airport', {
+    alt: 'Edificio principal de la terminal del aeropuerto de Kuala Lumpur',
+    author: 'Jannisri',
+    source: 'https://commons.wikimedia.org/wiki/File:KLIAMTB.jpg',
+    license: 'CC BY-SA 3.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
+  }],
+  ['sultan-mosque', {
+    alt: 'Cúpula de Sultan Mosque vista desde Kampong Glam',
+    author: 'Chainwit',
+    source: 'https://commons.wikimedia.org/wiki/File:Masjid_Sultan,_Singapore_(2023_June)_-_img_07.jpg',
+    license: 'CC BY-SA 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+    file: 'kampong-glam',
   }],
 ])

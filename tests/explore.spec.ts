@@ -55,3 +55,26 @@ test('Explorar filters experiences and offers offline map context without horizo
   await expect(page.getByRole('link', { name: /Eventos/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /Transporte/ })).toBeVisible();
 });
+
+test('loads a food photo, a reused place photo and approximate transport durations', async ({ page }) => {
+  await page.goto(`${base}#gastronomia`);
+  const foodPhoto = page.locator('.food-photo').first();
+  await foodPhoto.scrollIntoViewIfNeeded();
+  await expect.poll(() => foodPhoto.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+
+  await page.goto(`${base}#lugares`);
+  await page.getByRole('button', { name: 'Todos los lugares', exact: true }).click();
+  await page.getByRole('searchbox', { name: 'Buscar lugares' }).fill('Sultan Mosque');
+  const mosque = page.locator('[data-place="sultan-mosque"]');
+  const placePhoto = mosque.getByRole('img', { name: /Sultan Mosque/ });
+  await expect(placePhoto).toHaveAttribute('src', /places\/kampong-glam[.]webp$/);
+  await placePhoto.scrollIntoViewIfNeeded();
+  await expect.poll(() => placePhoto.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+  await mosque.getByText('Detalles del lugar').click();
+  await expect(mosque.getByText(/CC BY-SA 4[.]0/)).toBeVisible();
+
+  await page.goto(`${base}#transporte`);
+  await expect(page.locator('.route-grid')).toContainText('26 nov 2026');
+  await expect(page.locator('.route-grid')).toContainText('55–80 min');
+  await expect(page.locator('.route-grid')).not.toContainText('Duración exacta pendiente');
+});
