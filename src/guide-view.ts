@@ -7,6 +7,7 @@ const eventStatus = { confirmed: 'Confirmado', recurring: 'Pendiente de confirma
 const eventPrice = { gratis: 'Gratis', pago: 'De pago', pendiente: 'Precio pendiente' }
 export const eventFilters = { city: 'all', date: '', category: 'all', price: 'all' }
 export const foodFilters = { city: 'sg', query: '', tried: false }
+const dishPhotos = new Map([['kaya-toast', 'kaya.webp'], ['nasi-lemak', 'nasi.webp']])
 
 export function facts(entries: [string, string][]) {
   return `<dl class="facts">${entries.map(([label,value]) => `<div><dt>${e(label)}</dt><dd>${e(value || 'Pendiente de verificar')}</dd></div>`).join('')}</dl>`
@@ -63,7 +64,7 @@ export function foodResults(state: State) {
   const matches = dishes.filter(dish => dish.city === foodFilters.city && (!foodFilters.tried || state.triedDishes.includes(dish.id)) && `${dish.name} ${dish.description}`.toLocaleLowerCase('es').includes(query))
   return `<div class="reference-grid">${matches.map(dish => {
     const tried = state.triedDishes.includes(dish.id)
-    const image = /kaya toast/i.test(dish.name) ? 'kaya.webp' : /nasi lemak/i.test(dish.name) ? 'nasi.webp' : ''
+    const image = dishPhotos.get(dish.id)
     const suggestions = dish.placeIds.flatMap(id => { const place = getPlace(state,id); return place ? [place] : [] })
     return `<article class="card food-card">${image ? `<img class="food-photo" src="${import.meta.env.BASE_URL}${image}" alt="Presentación ilustrativa de ${e(dish.name)}" width="640" height="360" loading="lazy">` : ''}
       <div class="food-card-body"><div class="section-line"><h2>${e(dish.name)}</h2><button type="button" class="button compact" data-action="dish-tried" data-id="${e(dish.id)}" aria-pressed="${tried}">${icon(tried ? 'check' : 'gastronomia')}${tried ? 'Probado' : 'Marcar probado'}</button></div>

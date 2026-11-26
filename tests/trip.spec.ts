@@ -166,6 +166,37 @@ test('explicitly restores a deleted note from a complete backup', async ({ page 
   await expect(page.getByText('Recuerdo de la copia',{exact:true})).toBeVisible();
 });
 
+test('switches between Normal, Noche and Sistema and remembers the chosen theme', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto(`${base}#mas`);
+  const root = page.locator('html');
+  const appearance = page.getByRole('group', { name: 'Apariencia' });
+  const night = appearance.getByRole('button', { name: 'Noche' });
+  const normal = appearance.getByRole('button', { name: 'Normal' });
+  const system = appearance.getByRole('button', { name: 'Sistema' });
+
+  await expect(system).toHaveAttribute('aria-pressed', 'true');
+  await expect(root).toHaveAttribute('data-theme', 'light');
+  await night.click();
+  await expect(root).toHaveCSS('color-scheme', 'dark');
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#15192e');
+  await page.reload();
+  await expect(night).toHaveAttribute('aria-pressed', 'true');
+  await expect(root).toHaveAttribute('data-theme', 'dark');
+
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await normal.click();
+  await expect(root).toHaveCSS('color-scheme', 'light');
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#f8f4ef');
+  await page.getByRole('link', { name: 'Explorar', exact: true }).click();
+  await expect(root).toHaveAttribute('data-theme', 'light');
+  await page.getByRole('link', { name: 'Más', exact: true }).click();
+  await system.click();
+  await expect(root).toHaveAttribute('data-theme', 'dark');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect(root).toHaveAttribute('data-theme', 'light');
+});
+
 test('works offline under the subpath and keeps a keyboard path at 375 px', async ({ browser }) => {
   const context = await browser.newContext({viewport:{width:375,height:812}});
   try {
@@ -194,6 +225,10 @@ test('works offline under the subpath and keeps a keyboard path at 375 px', asyn
     await expect(page.locator('.pl-activity').first()).toBeVisible();
     await page.goto(`${base}#gastronomia`);
     await expect(page.getByRole('heading',{name:'Gastronomía',exact:true})).toBeVisible();
+    await page.goto(`${base}#lugares`);
+    const photo = page.locator('[data-place="merlion"]').getByRole('img', { name: /Merlion/ });
+    await photo.scrollIntoViewIfNeeded();
+    await expect.poll(() => photo.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
     expect(errors).toEqual([]);
   } finally { await context.close(); }
 });

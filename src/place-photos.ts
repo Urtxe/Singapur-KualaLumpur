@@ -1,0 +1,172 @@
+type PlacePhoto = {
+  alt: string
+  author: string
+  source: string
+  license: string
+  licenseUrl: string
+}
+
+// Keys use the same place IDs as the itinerary and filenames in public/places.
+export const placePhotos = new Map<string, PlacePhoto>([
+  ['aquaria', {
+    alt: "Visitantes en el túnel submarino de Aquaria KLCC",
+    author: "Phalinn Ooi from Kuala Lumpur, Malaysia",
+    source: "https://commons.wikimedia.org/wiki/File:Underwater_tunnel_in_Aquaria_KLCC.jpg",
+    license: "CC BY 2.0",
+    licenseUrl: "https://creativecommons.org/licenses/by/2.0",
+  }],
+  ['batu-caves', {
+    alt: "Estatua dorada de Murugan y escalinata de colores en Batu Caves",
+    author: "Chainwit",
+    source: "https://commons.wikimedia.org/wiki/File:Batu_Caves_stairs_2022-05.jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+  }],
+  ['central-market', {
+    alt: "Fachada azul y entrada de Central Market en Kuala Lumpur",
+    author: "Wiki Farazi",
+    source: "https://commons.wikimedia.org/wiki/File:Pasar_Seni_(Central_Market)_exterior,_Kuala_Lumpur_20231114_102911.jpg",
+    license: "CC0",
+    licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+  }],
+  ['chinatown', {
+    alt: "Fachada roja del Buddha Tooth Relic Temple en Chinatown",
+    author: "Chainwit",
+    source: "https://commons.wikimedia.org/wiki/File:BTRTM_as_seen_from_Maxwell_MRT_entrance_(2025)_-_img_05.jpg",
+    license: "CC BY 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by/4.0",
+  }],
+  ['clarke-quay', {
+    alt: "Edificios iluminados de Clarke Quay junto al río Singapur",
+    author: "Chensiyuan",
+    source: "https://commons.wikimedia.org/wiki/File:1_clarke_quay_singapore_night_2014.jpg",
+    license: "CC BY-SA 3.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
+  }],
+  ['cloud-forest', {
+    alt: "Cascada interior de Cloud Forest en Gardens by the Bay",
+    author: "Basile Morin",
+    source: "https://commons.wikimedia.org/wiki/File:Cloud_Forest,_Gardens_by_the_Bay,_Singapore.jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+  }],
+  ['gardens', {
+    alt: "Supertrees y jardines exteriores de Gardens by the Bay",
+    author: "Shiny Things",
+    source: "https://commons.wikimedia.org/wiki/File:Supertree_Grove,_Gardens_by_the_Bay,_Singapore_-_20120712-02.jpg",
+    license: "CC BY 2.0",
+    licenseUrl: "https://creativecommons.org/licenses/by/2.0",
+  }],
+  ['helix', {
+    alt: "Estructura en espiral iluminada del Helix Bridge",
+    author: "William Cho",
+    source: "https://commons.wikimedia.org/wiki/File:Double-Helix-Bridge.jpg",
+    license: "CC BY-SA 2.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/2.0",
+  }],
+  ['jalan-alor', {
+    alt: "Mesas y puestos de comida de Jalan Alor al anochecer",
+    author: "IQRemix",
+    source: "https://commons.wikimedia.org/wiki/File:Jalan_Alor_-_Kuala_Lumpur.jpg",
+    license: "CC BY-SA 2.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/2.0",
+  }],
+  ['jewel', {
+    alt: "Cascada Rain Vortex y jardines interiores de Jewel Changi",
+    author: "Uzoma Ozurumba",
+    source: "https://commons.wikimedia.org/wiki/File:Jewel_Changi_Airport_interior_1.jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+  }],
+  ['kampong-glam', {
+    alt: "Cúpula de Sultan Mosque vista desde las calles de Kampong Glam",
+    author: "Chainwit",
+    source: "https://commons.wikimedia.org/wiki/File:Masjid_Sultan,_Singapore_(2023_June)_-_img_07.jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+  }],
+  ['klcc-park', {
+    alt: "Fuentes iluminadas de Lake Symphony en KLCC Park",
+    author: "arches",
+    source: "https://commons.wikimedia.org/wiki/File:Symphony_Lake_Fountain_Show_KLCC_Park_-_panoramio.jpg",
+    license: "CC BY-SA 3.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
+  }],
+  ['lau-pa-sat', {
+    alt: "Fachada del pabellón histórico de Lau Pa Sat en Singapur",
+    author: "kallerna",
+    source: "https://commons.wikimedia.org/wiki/File:Lau_Pa_Sat_Singapore_2.jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+  }],
+  ['maxwell', {
+    alt: "Edificio de Maxwell Food Centre visto desde la calle",
+    author: "Aaaatu",
+    source: "https://commons.wikimedia.org/wiki/File:Maxwell_Food_Centre.jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+  }],
+  ['merdeka', {
+    alt: "Explanada y edificios de Merdeka Square en Kuala Lumpur",
+    author: "Haakon S. Krohn",
+    source: "https://commons.wikimedia.org/wiki/File:Dataran_Merdeka_2.jpg",
+    license: "CC BY-SA 3.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
+  }],
+  ['merlion', {
+    alt: "Estatua del Merlion y Marina Bay Sands iluminados sobre la bahía",
+    author: "Ralff Nestor Nacor",
+    source: "https://commons.wikimedia.org/wiki/File:Merlion_%26_Marina_Bay_Sands,_Singapore_at_Night.jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+  }],
+  ['pavilion', {
+    alt: "Entrada principal de Pavilion Kuala Lumpur",
+    author: "Mr.sacrebleu",
+    source: "https://commons.wikimedia.org/wiki/File:Pavilion_KL_Entrance.jpg",
+    license: "CC BY-SA 3.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
+  }],
+  ['petaling', {
+    alt: "Arco de entrada a Jalan Petaling en el Chinatown de Kuala Lumpur",
+    author: "Shesmax",
+    source: "https://commons.wikimedia.org/wiki/File:Kuala_Lumpur._Jalan_Petaling._2019-12-07_15-24-49.jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+  }],
+  ['petronas', {
+    alt: "Torres Gemelas Petronas y su puente entre el perfil urbano de Kuala Lumpur al atardecer",
+    author: "James Kerwin from Tbilisi",
+    source: "https://commons.wikimedia.org/wiki/File:The_Twins_SE_Asia_2019_(49171985716).jpg",
+    license: "CC BY 2.0",
+    licenseUrl: "https://creativecommons.org/licenses/by/2.0",
+  }],
+  ['spectra', {
+    alt: "Composición fotográfica del espectáculo Spectra en Marina Bay Sands",
+    author: "Rocks n' Scapes",
+    source: "https://commons.wikimedia.org/wiki/File:The_Marina_Bay_Sands_proudly_showing_off_its_lasers.jpg",
+    license: "CC BY 2.0",
+    licenseUrl: "https://creativecommons.org/licenses/by/2.0",
+  }],
+  ['supertrees', {
+    alt: "Supertree Grove iluminado durante Garden Rhapsody",
+    author: "tee_eric",
+    source: "https://commons.wikimedia.org/wiki/File:Supertree_Grove,_Gardens_by_the_Bay,_Singapore_-_20120630-05.jpg",
+    license: "CC BY 2.0",
+    licenseUrl: "https://creativecommons.org/licenses/by/2.0",
+  }],
+  ['tekka', {
+    alt: "Comedor y puestos de Tekka Centre en Little India",
+    author: "Kbseah",
+    source: "https://commons.wikimedia.org/wiki/File:Tekka_Centre,_dining_area.jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+  }],
+  ['thean-hou', {
+    alt: "Tejados y farolillos rojos del templo Thean Hou",
+    author: "Alexey Komarov",
+    source: "https://commons.wikimedia.org/wiki/File:Thean_Hou_Temple,_Kuala_Lumpur-1.jpg",
+    license: "CC BY-SA 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+  }],
+])

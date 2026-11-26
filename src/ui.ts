@@ -32,6 +32,7 @@ const paths: Record<string, string> = {
   star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.3-5.5-3-5.5 3 1-6.3L3 9.6l6.2-.9z"/>',
   close: '<path d="m6 6 12 12M18 6 6 18"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
   moon: '<path d="M20 15A8 8 0 0 1 9 4a9 9 0 1 0 11 11Z"/>',
   map: '<path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zm6-3v15m6-12v15"/>',
   list: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
@@ -49,8 +50,7 @@ const paths: Record<string, string> = {
   settings: '<path d="M4 7h16M4 12h16M4 17h16M9 5v4m6 1v4m-5 1v4"/>',
   document: '<path d="M7 3h7l4 4v14H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm7 0v5h4m-9 5h5m-5 4h5"/>',
   preparativos: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2m-6 9 2 2 4-5"/>',
-  navigation: '<path d="m21 3-7 18-3.5-7.5L3 10z"/>',
-  chevron: '<path d="m9 5 7 7-7 7"/>',
+  navigation: '<circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H16a3 3 0 0 0 0-6H8a3 3 0 0 1 0-6h7.5"/>',
 }
 export const icon = (name: string, cls = '') => `<svg class="${cls}" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] ?? paths.compass}</svg>`
 export const dateShort = (date: string) => `${Number(date.slice(-2))} dic`

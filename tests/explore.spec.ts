@@ -7,7 +7,14 @@ test('Explorar starts with a curated selection and supports choosing a day befor
   await page.goto(`${base}#lugares`);
   await expect(page.getByRole('heading', { name: 'Explorar', exact: true })).toBeVisible();
   await expect(page.locator('.explore-place')).toHaveCount(9);
-  await expect(page.locator('.explore-photo-note').first()).toContainText('imagen de contexto');
+  const merlion = page.locator('[data-place="merlion"]').getByRole('img', { name: /Merlion/ });
+  const tekka = page.locator('[data-place="tekka"]').getByRole('img', { name: /Tekka Centre/ });
+  const batu = page.locator('[data-place="batu-caves"]').getByRole('img', { name: /Batu Caves/ });
+  for (const [image, id] of [[merlion, 'merlion'], [tekka, 'tekka'], [batu, 'batu-caves']] as const) {
+    await expect(image).toHaveAttribute('src', new RegExp(`places/${id}[.]webp$`));
+    await image.scrollIntoViewIfNeeded();
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+  }
 
   await page.getByLabel('Añadir al día').selectOption('2026-12-08');
   await page.getByRole('button', { name: 'Añadir al plan' }).first().click();
@@ -30,8 +37,17 @@ test('Explorar filters experiences and offers offline map context without horizo
     expect(dimensions.page, `page width at ${width}px`).toBeLessThanOrEqual(dimensions.viewport);
   }
 
+  await page.getByRole('button', { name: 'Todos los lugares', exact: true }).click();
+  await page.getByRole('searchbox', { name: 'Buscar lugares' }).fill('Hotel Mi Rochor');
+  const hotel = page.locator('[data-place="mi-rochor"]');
+  await expect(hotel.getByRole('heading', { name: 'Hotel Mi Rochor' })).toBeVisible();
+  await expect(hotel.getByRole('img')).toHaveCount(0);
+  await hotel.getByRole('button', { name: /Añadir a favoritos/ }).click();
+  await expect(hotel.getByRole('button', { name: /Quitar de favoritos/ })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('searchbox', { name: 'Buscar lugares' }).clear();
+
   await page.getByRole('button', { name: 'Favoritos', exact: true }).click();
-  await expect(page.getByText(/No hay experiencias/)).toBeVisible();
+  await expect(hotel).toBeVisible();
   await page.getByRole('button', { name: 'Mapa', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Mapa de lugares' })).toBeVisible();
   await expect(page.getByText(/no representa calles ni navegación/)).toBeVisible();

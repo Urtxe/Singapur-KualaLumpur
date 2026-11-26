@@ -59,7 +59,9 @@ export function mountToday(element: HTMLElement, app: AppContext) {
     const preview = date !== actualDate
     const day = days.find(entry => entry.date === date)
     const cityCode = day?.city === 'kl' && (date !== '2026-12-07' || preview || now.valueOf() >= Date.parse('2026-12-07T16:10:00+08:00')) ? 'kl' : 'sg'
-    const cityName = !day ? 'Viaje finalizado' : day.city === 'air' ? 'En ruta' : date === '2026-12-07' && preview ? 'Singapur a Kuala Lumpur' : cityCode === 'sg' ? 'Singapur' : 'Kuala Lumpur'
+    const transferPreview = date === '2026-12-07' && preview
+    const cityName = !day ? 'Viaje finalizado' : day.city === 'air' ? 'En ruta' : transferPreview ? 'Singapur a Kuala Lumpur' : cityCode === 'sg' ? 'Singapur' : 'Kuala Lumpur'
+    const cityPhoto = day && day.city !== 'air' && !transferPreview ? cityCode : ''
     const localClock = now.toLocaleTimeString('es-ES', { timeZone: 'Asia/Singapore', hour: '2-digit', minute: '2-digit' })
     const itinerary = activeActivities(state, date)
     const pending = itinerary.filter(item => item.status === 'pending')
@@ -82,7 +84,7 @@ export function mountToday(element: HTMLElement, app: AppContext) {
       ${next.detail || tripText || !state.family ? `<details class="today-detail"><summary>Detalles y opciones</summary>${place?.address || next.address ? `<p>${e(place?.address || next.address)}</p>` : ''}${next.detail ? `<p>${e(next.detail)}</p>` : ''}${tripText ? `<p>${e(tripText)}</p>` : ''}<div class="actions">${!next.fixed && !next.flight ? todayAction('delay','Retrasar 15 min',next.id) + todayAction('skip','Omitir',next.id) : ''}${todayAction('note','Añadir nota',next.id)}</div></details>` : ''}
     </article>` : `<article class="today-next empty-next"><h2>${day ? 'El plan está al día' : 'Sin actividades para hoy'}</h2><p>${day ? 'Consulta lo que queda o prepara otra jornada.' : 'Elige una jornada para ver el itinerario.'}</p></article>`
     element.innerHTML = `<section class="today-shell-v3">
-      <header class="today-heading" data-city="${cityCode}"><div><p>${e(cityName)}</p><h1>Hoy</h1><p>${e(dateLong(date))}</p><small>${e(title)}</small></div></header>
+      <header class="today-heading" data-city="${cityPhoto}"><div><p>${e(cityName)}</p><h1>Hoy</h1><p>${e(dateLong(date))}</p><small>${e(title)}</small></div></header>
       <div class="today-date-row"><label><span class="sr-only">Fecha de Hoy</span><select aria-label="Fecha de Hoy" data-today-date>${day ? '' : '<option value="" selected>Elegir jornada</option>'}${dayOptions(day ? date : '')}</select></label>${chosen ? todayAction('reset','Volver a hoy') : ''}${todayAction('plan','Ver plan',date,'agenda')}</div>
       ${nextCard}
       ${alerts[date] ? `<aside class="today-alert">${icon('alert')}<span>${e(alerts[date])}</span></aside>` : ''}

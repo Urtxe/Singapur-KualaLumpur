@@ -95,8 +95,7 @@ export function registerSW(): void {
   });
 }
 
-function requestWorker<T>(command: string): Promise<T> {
-  const worker = navigator.serviceWorker?.controller ?? registration?.active;
+function requestWorker<T>(command: string, worker = navigator.serviceWorker?.controller ?? registration?.active): Promise<T> {
   if (!worker) return Promise.reject(new Error('El service worker todavía no está activo. Abre de nuevo esta pantalla cuando la conexión esté disponible.'));
   return new Promise((resolve, reject) => {
     const channel = new MessageChannel();
@@ -122,8 +121,25 @@ export async function checkOfflineCache(): Promise<CacheStatus | null> {
 }
 
 export async function prepareOfflineCache(): Promise<CacheStatus> {
-  if (!('serviceWorker' in navigator)) throw new Error('Este navegador no permite preparar el almacenamiento offline.');
-  return requestWorker<CacheStatus>('PREPARE_OFFLINE');
+  const container = navigator.serviceWorker;
+  if (!container) throw new Error('Este navegador no permite preparar el almacenamiento offline.');
+  let worker = container.controller ?? registration?.active;
+  if (!worker && navigator.onLine) {
+    // On a first visit, the worker becomes ready after it has cached the trip assets.
+    let timeout = 0;
+    try {
+      const ready = await Promise.race([
+        container.ready,
+        new Promise<never>((_, reject) => {
+          timeout = window.setTimeout(() => reject(new Error('La preparación inicial sin conexión ha tardado demasiado.')), 10_000);
+        }),
+      ]);
+      worker = ready.active;
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  }
+  return requestWorker<CacheStatus>('PREPARE_OFFLINE', worker);
 }
 
 export async function waitingUpdateAvailable(): Promise<boolean> {

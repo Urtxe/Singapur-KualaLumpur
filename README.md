@@ -51,3 +51,5 @@ El repositorio es [Urtxe/Singapur-KualaLumpur](https://github.com/Urtxe/Singapur
 ## Imágenes locales
 
 `public/cover.webp`, `public/kuala-lumpur.webp`, `public/kaya.webp` y `public/nasi.webp` son ilustraciones fotográficas generadas con ImageGen y optimizadas a WebP. Se encargaron fotografías editoriales de Gardens by the Bay, de las torres Petronas al anochecer, de kaya toast en una cafetería de Singapur y de nasi lemak servido sobre hoja de plátano. Las fotos de las fichas de comida son ilustrativas.
+
+Las fotografías de lugares están en `public/places/`, con metadatos y créditos en `src/place-photos.ts` y en los detalles de cada ficha. Se distribuyen como WebP locales para poder verlas sin conexión.

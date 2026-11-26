@@ -109,8 +109,14 @@ function announce(message: string) {
   timer = window.setTimeout(() => { output.hidden = true }, 5200)
 }
 
+const systemAppearance = matchMedia('(prefers-color-scheme: dark)')
+
 function applyTheme() {
-  document.documentElement.dataset.theme = state.theme
+  const effectiveTheme = state.theme === 'auto' ? (systemAppearance.matches ? 'dark' : 'light') : state.theme
+  const rootElement = document.documentElement
+  if (rootElement.dataset.theme === effectiveTheme) return
+  rootElement.dataset.theme = effectiveTheme
+  document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')!.content = getComputedStyle(rootElement).getPropertyValue('--page').trim()
 }
 
 function updateTopbar() {
@@ -171,11 +177,17 @@ function go(to: Route) {
 }
 
 function moreView() {
-  const item = (route: Route, glyph: string = route) => `<a href="#${route}"><span class="more-icon">${icon(glyph)}</span><span>${labels[route]}</span>${icon('chevron')}</a>`
+  const item = (route: Route, glyph: string = route) => `<a href="#${route}"><span class="more-icon">${icon(glyph)}</span><span>${labels[route]}</span></a>`
+  const appearance = ([
+    ['light', 'Normal', 'sun'],
+    ['dark', 'Noche', 'moon'],
+    ['auto', 'Sistema', 'settings'],
+  ] as const).map(([value, label, glyph]) => `<button type="button" data-action="theme" data-id="${value}" aria-pressed="${state.theme === value}">${icon(glyph)}${label}</button>`).join('')
   return `<section class="more-screen"><header class="page-head"><h1>Más</h1></header><div class="more-layout">
     <nav class="more-group" aria-label="Viaje"><h2>El viaje</h2>${item('viaje','plane')}${item('preparativos')}${item('diario')}${item('emergencias')}</nav>
     <section class="more-group" aria-labelledby="more-device"><h2 id="more-device">En este dispositivo</h2>${item('compartir')}${item('documentos','document')}${item('offline','wifi')}
-      <details class="more-settings"><summary><span class="more-icon">${icon('settings')}</span>Configuración</summary><div class="actions">${button('Apariencia','theme','moon')}${button(state.family ? 'Desactivar modo familia' : 'Activar modo familia','family','people')}</div></details>
+      <div class="more-appearance"><h3 id="appearance-heading">Apariencia</h3><div class="segmented" role="group" aria-labelledby="appearance-heading">${appearance}</div></div>
+      <details class="more-settings"><summary><span class="more-icon">${icon('settings')}</span>Configuración</summary><div class="actions">${button(state.family ? 'Desactivar modo familia' : 'Activar modo familia','family','people')}</div></details>
     </section></div></section>`
 }
 
@@ -388,7 +400,9 @@ root.addEventListener('click', event => {
     case 'locate': locate(); break
     case 'copy': void copyAddress(id); break
     case 'emergency': go('emergencias'); break
-    case 'theme': show('Apariencia', `<form data-form="theme"><label class="field"><span>Tema</span><select name="theme">${option('auto','Sistema',state.theme)}${option('light','Claro',state.theme)}${option('dark','Oscuro',state.theme)}</select></label><button class="button primary" type="submit">Guardar apariencia</button></form>`); break
+    case 'theme':
+      if ((id === 'light' || id === 'dark' || id === 'auto') && id !== state.theme) commit({ ...state, theme: id })
+      break
     case 'family': commit({ ...state, family: !state.family }, state.family ? 'Modo familia desactivado.' : 'Modo familia activado.'); break
     case 'explore-city': view.city = id; render(); break
     case 'explore-category': view.kind = id; render(); break
@@ -484,7 +498,6 @@ function formState(form: HTMLFormElement) {
     if (!note.text) throw new Error('Escribe una nota antes de guardarla.')
     return { ...state, notes: upsert(state.notes, note) }
   }
-  if (form.dataset.form === 'theme') return { ...state, theme: value('theme') as State['theme'] }
   return state
 }
 
@@ -509,6 +522,7 @@ window.addEventListener('hashchange', () => render(true))
 function connectionChanged() { if (route() === 'inicio' && !modal.open) render(); else updateTopbar() }
 window.addEventListener('online', connectionChanged)
 window.addEventListener('offline', connectionChanged)
+systemAppearance.addEventListener('change', applyTheme)
 navigator.serviceWorker?.addEventListener('controllerchange', () => updateTopbar())
 window.setInterval(() => {
   updateTopbar()
