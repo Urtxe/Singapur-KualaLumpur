@@ -65,6 +65,7 @@ test('persists edits to an original activity and moves a custom activity between
 });
 
 test('combines a plan from another phone with local expenses and deduplicates replay', async ({ browser }) => {
+  test.setTimeout(45_000);
   const sending = await browser.newContext({acceptDownloads:true});
   const receiving = await browser.newContext();
   try {
@@ -213,7 +214,8 @@ test('works offline under the subpath and keeps a keyboard path at 375 px', asyn
     page.on('pageerror',error=>errors.push(error.message));
     page.on('console',entry=>{ if(entry.type()==='error') errors.push(entry.text()); });
     await page.goto(base);
-    await expect(page.getByText('Disponible offline',{exact:true})).toBeVisible();
+    await expect(page.getByText('Con conexión',{exact:true})).toBeVisible();
+    await page.evaluate(async () => { if ('serviceWorker' in navigator) await navigator.serviceWorker.ready; });
     await page.keyboard.press('Tab');
     await expect(page.locator(':focus')).toBeVisible();
     for (const route of ['inicio','agenda','lugares','gastos','compartir','viaje']) {

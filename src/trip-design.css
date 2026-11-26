@@ -37,6 +37,16 @@ body::before {
 summary { font-weight: 750; }
 
 .today-shell-v3 { display: grid; gap: 12px; }
+.today-pretrip { display:grid; gap:12px; padding:18px; border:1px solid var(--line); border-radius:18px; background:var(--surface); box-shadow:var(--shadow); }
+.today-pretrip h2 { margin:.25rem 0; font-size:clamp(1.25rem,4vw,1.7rem); }
+.today-pretrip p { margin:.25rem 0; color:var(--muted); }
+.today-pretrip-kicker { color:var(--primary); font-size:.78rem; font-weight:750; }
+.today-pretrip-tasks { padding-top:10px; border-top:1px solid var(--line); }
+.today-pretrip-tasks ul { display:grid; gap:4px; margin:.5rem 0 0; padding-inline-start:1.25rem; }
+.today-pretrip-tasks li { padding-inline-start:.15rem; }
+.today-pretrip-links { display:flex; flex-wrap:wrap; gap:8px; }
+.food-safety-note { margin-block:10px 14px; padding:12px 14px; border-inline-start:4px solid var(--accent); background:var(--surface); }
+.emergency-note { margin-block:12px; padding:12px 14px; }
 .today-heading { position: relative; display: grid; align-items: center; isolation: isolate; min-width: 0; min-height: 140px; padding: 16px 18px; border-radius: 20px; color: var(--banner-ink); overflow: hidden; background: var(--banner); }
 .today-heading::before { position: absolute; z-index: -1; inset: 0; content: ''; background: radial-gradient(ellipse at 100% 0%,#c2794166,transparent 72%), repeating-linear-gradient(45deg,transparent 0 12px,#f5bc6c30 12px 13px); }
 .today-heading[data-city="sg"]::before { background: linear-gradient(90deg,var(--photo-shade) 5%,#4d2029e8 31%,#4d202933 82%),url('/cover.webp') 80% 53% / cover; }

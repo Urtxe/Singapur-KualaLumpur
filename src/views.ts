@@ -100,7 +100,7 @@ export function preparations(state: State) {
     <div class="travel-grid"><div><section class="card">
     <div class="section-line"><h2>Lista de preparación</h2><span class="tag ok">${state.checks.length}/${checklist.length}</span></div>
     <div class="checklist">${checklist.map(item => `<div class="check-row"><label><input type="checkbox" data-action="check" data-id="${e(item.id)}"${state.checks.includes(item.id) ? ' checked' : ''}><span><strong>${e(item.title)}</strong><span>${e(item.detail)}</span></span></label>${sourceLink(item.source)}</div>`).join('')}</div></section>
-    <details class="card"><summary>Fuentes y consultas</summary><p>Consultadas el 25 de noviembre de 2026.</p>
+    <details class="card"><summary>Fuentes y consultas</summary><p>Cada ficha indica la fecha de consulta; horarios, precios y requisitos pueden cambiar.</p>
     <ul class="source-list">${sources.map(item => `<li>${sourceLink(item.url, item.label)}<p>${e(item.note)}</p></li>`).join('')}</ul></details></div>
     <div><details class="card"><summary>Lluvia o cansancio</summary>${rainPlans.map(plan => `<div class="notice"><span class="notice-icon">${icon('rain')}</span><div><h3>${e(plan.title)}</h3><p>${e(plan.detail)}</p></div></div>`).join('')}</details></div></div>`
 }

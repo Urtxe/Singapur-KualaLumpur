@@ -201,6 +201,40 @@ export function createInitialState(activities: Activity[], checks: string[], dev
   return { ...base, meta:initialMeta(base,deviceId) };
 }
 
+function updatedBaseRevision(kind: RecordKind, recordId: string, value: unknown, previous: RecordRevision): RecordRevision {
+  if (previous.version >= Number.MAX_SAFE_INTEGER) fail('record version limit reached');
+  return {
+    ...baselineRevision(kind, recordId, value),
+    revision: `base-update:${stableHash(canonical([kind, recordId, previous.revision, value]))}`,
+    parents: [...new Set([previous.revision, ...previous.parents])].slice(0, MAX_REVISIONS_PER_RECORD),
+    version: previous.version + 1,
+  };
+}
+
+export function refreshBaseActivities(state: State, activityIds: readonly string[]): State {
+  const allowed = new Set(activityIds);
+  const updates = new Map(baseActivities.filter(item => allowed.has(item.id)).map(item => [item.id, parseActivity(item)]));
+  const records = { ...state.meta.records };
+  let changed = false;
+  const activities = state.activities.map(item => {
+    const next = updates.get(item.id);
+    const key = recordKeyFor('activity', item.id);
+    const revision = records[key];
+    if (!next || revision?.source !== 'base' || revision.deleted) return item;
+    changed ||= canonical(item) !== canonical(next);
+    if (canonical(item) !== canonical(next)) records[key] = updatedBaseRevision('activity', item.id, next, revision);
+    return next;
+  });
+  for (const [id, item] of updates) {
+    const key = recordKeyFor('activity', id);
+    if (activities.some(entry => entry.id === id) || records[key]) continue;
+    activities.push(item);
+    records[key] = baselineRevision('activity', id, item);
+    changed = true;
+  }
+  return changed ? { ...state, activities, meta: { ...state.meta, records } } : state;
+}
+
 function parseDayPreference(date: string, value: unknown): DayPreference {
   const activeB = record(value) && value.active === 'B';
   const entries = activeB ? value.preferences : value;

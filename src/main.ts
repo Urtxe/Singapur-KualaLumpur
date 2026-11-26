@@ -4,10 +4,10 @@ import './planner.css'
 import './finance.css'
 import './offline.css'
 import './trip-design.css'
-import { baseActivities } from './data'
+import { BASE_UPDATED_ACTIVITY_IDS, baseActivities, days } from './data'
 import type { AppContext } from './app-api'
 import { dialogContent, noteForm, placeForm } from './dialogs'
-import { asiaDate, createInitialState, loadState, saveState, stampChanges, STORAGE_KEY } from './state'
+import { asiaDate, createInitialState, loadState, refreshBaseActivities, saveState, stampChanges, STORAGE_KEY } from './state'
 import { registerSW } from './sw-register'
 import { mountPlanner, openActivity } from './planner'
 import { mountToday } from './today'
@@ -51,7 +51,8 @@ const storage = {
 const baseline = createInitialState(baseActivities, [])
 const stored = loadState(storage, knownPlaceIds)
 let state = stored.state ?? baseline
-if (stored.status === 'empty' || stored.migrated) saveState(state, storage, knownPlaceIds)
+if (stored.state) state = refreshBaseActivities(state, BASE_UPDATED_ACTIVITY_IDS)
+if (stored.status === 'empty' || stored.migrated || state !== stored.state) saveState(state, storage, knownPlaceIds)
 function diskSnapshot() {
   try { return storage.getItem(STORAGE_KEY) } catch { return null }
 }
@@ -60,7 +61,12 @@ let isCorrupt = stored.status === 'corrupt'
 let storageWarning = stored.status === 'unavailable' ? 'El almacenamiento local no está disponible. Los cambios requieren un navegador con almacenamiento habilitado.' : isCorrupt ? 'La copia local no se pudo leer. Puedes recuperarla en Compartir e importar.' : ''
 let agendaDate = planningDay(new Date())
 let todayPreview: string | undefined
-const view: PlaceView = { tab: 'list', date: agendaDate, query: '', city: 'all', kind: 'featured', selection: '', mapCity: getDay(agendaDate).city === 'kl' ? 'kl' : 'sg', mapFilter: 'day', centered: false }
+function placeDate(date: string) {
+  if (getDay(date).city !== 'air') return date
+  return days.find(day => day.date >= date && day.city !== 'air')?.date ?? [...days].reverse().find(day => day.date <= date && day.city !== 'air')?.date ?? date
+}
+const exploreDate = placeDate(agendaDate)
+const view: PlaceView = { tab: 'list', date: exploreDate, query: '', city: 'all', kind: 'featured', selection: '', mapCity: getDay(exploreDate).city === 'kl' ? 'kl' : 'sg', mapFilter: 'day', centered: false }
 let timer = 0
 let returnFocus: HTMLElement | null = null
 let routeContext: { destination: Place; hotel?: Place; previous?: Place; coords: string; activity?: Activity } | undefined
@@ -91,10 +97,10 @@ function route(): Route {
 
 function setAgendaDate(date: string) {
   agendaDate = date
-  view.date = date
+  view.date = placeDate(date)
   view.selection = ''
   view.centered = false
-  const city = getDay(date).city
+  const city = getDay(view.date).city
   if (city !== 'air') view.mapCity = city
 }
 
@@ -125,9 +131,8 @@ function applyTheme() {
 }
 
 function updateTopbar() {
-  const ready = 'serviceWorker' in navigator && !!navigator.serviceWorker.controller
-  document.querySelector('#offline-status span')!.textContent = offlineText(ready)
-  document.querySelector('#offline-status')!.classList.toggle('ready', ready)
+  document.querySelector('#offline-status span')!.textContent = offlineText()
+  document.querySelector('#offline-status')!.classList.toggle('ready', navigator.onLine)
 }
 
 function actionSelector(element: HTMLElement | null) {

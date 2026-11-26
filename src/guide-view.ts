@@ -3,7 +3,7 @@ import { connections, dishes, localEvents, placeGuides, safety } from './guide-d
 import type { Place, State } from './types'
 import { allPlaces, button, city, cityHotel, dayOptions, directDistance, e, getPlace, icon, option, sourceLink, title } from './ui'
 
-const eventStatus = { confirmed: 'Confirmado', recurring: 'Pendiente de confirmar', mobility: 'Aviso de movilidad', alternative: 'Sugerencia' }
+const eventStatus = { confirmed: 'Anunciado', recurring: 'Pendiente de confirmar', mobility: 'Aviso de movilidad', alternative: 'Sugerencia' }
 const eventPrice = { gratis: 'Gratis', pago: 'De pago', pendiente: 'Precio pendiente' }
 export const eventFilters = { city: 'all', date: '', category: 'all', price: 'all' }
 export const foodFilters = { city: 'sg', query: '', tried: false }
@@ -86,6 +86,7 @@ export function foodResults(state: State) {
 
 export function gastronomy(state: State) {
   return `${title('Gastronomía', 'Qué pedir, dónde probarlo y cómo elegir opciones para cinco.')}
+    <p class="card food-safety-note">Las recetas y los ingredientes cambian según el puesto. Si hay alergias, preguntad directamente por ingredientes y contaminación cruzada; esta guía no garantiza platos sin alérgenos. Pedid sambal y salsas aparte cuando sea posible.</p>
     <div class="filter-bar food-filter"><label class="search-field">${icon('search')}<span class="sr-only">Buscar platos</span><input type="search" data-action="dish-query" value="${e(foodFilters.query)}" placeholder="Buscar un plato"></label>
     <label class="sr-only" for="food-city">Ciudad</label><select id="food-city" data-action="dish-city">${option('sg','Singapur',foodFilters.city)}${option('kl','Kuala Lumpur',foodFilters.city)}</select>
     <label class="filter-check"><input type="checkbox" data-action="dish-only-tried"${foodFilters.tried ? ' checked' : ''}> Solo probados</label></div>
@@ -110,6 +111,7 @@ export function safetyView(state: State) {
   return `${title('Emergencias', 'Contactos y direcciones disponibles aunque los teléfonos estén separados.')}
     <section class="emergency-banner"><div><h2>Singapur</h2><a href="tel:999" class="button">Policía · 999</a><a href="tel:995" class="button">Ambulancia y bomberos · 995</a></div>
     <div><h2>Malasia</h2><a href="tel:999" class="button">Emergencias · 999</a></div></section>
+    <p class="card emergency-note">Ante una urgencia, llama al número local y sigue las instrucciones del operador. Los centros médicos listados son referencias; no se han verificado como los más cercanos a vuestra ubicación.</p>
     <div class="reference-grid">${hotels.map(place => `<section class="card guide-card"><span class="tag ok">${city[place.city]}</span><h2>${e(place.name)}</h2><p>${e(place.address)}</p>
       <p class="driver-message" lang="en">Please take us to ${e(place.name)}. ${e(place.address)}. We are five passengers.</p>
       <div class="actions">${button('Copiar para el conductor','driver','copy','',place.id)}${button('Cómo llegar','directions','lugares','',place.id)}</div></section>`).join('')}
@@ -119,5 +121,5 @@ export function safetyView(state: State) {
       <div class="actions">${/^\+?\d{3,18}$/.test(phone) ? `<a class="button" href="tel:${e(phone)}">Llamar al ${e(item.phone)}</a>` : ''}${item.placeId ? button('Cómo llegar','directions','lugares','compact',item.placeId) : ''}${sourceLink(item.source)}</div></section>`
     }).join('')}</div>
     <section class="card guide-card safety-bottom"><h2>Si nos separamos o perdemos un teléfono</h2><p>Consultad el hotel en la app instalada y acordad un punto de encuentro. Si hace falta, pedid Wi‑Fi en el alojamiento o mostrársele al conductor la tarjeta anterior. Desde otro dispositivo, bloquead el teléfono perdido y avisad al operador.</p>
-    <div class="actions"><a class="button" href="#offline">Documentos y seguro local</a><a class="button" href="#viaje">Formularios de llegada</a></div></section>`
+    <div class="actions"><a class="button" href="#documentos">Documentos y seguro local</a><a class="button" href="#viaje">Formularios de llegada</a></div></section>`
 }

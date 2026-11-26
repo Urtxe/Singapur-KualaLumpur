@@ -1,11 +1,11 @@
 import type { AppContext } from './app-api'
-import { days } from './data'
+import { checklist, days } from './data'
 import { financeSummary, financeTotals } from './finance'
 import { placeGuides } from './guide-data'
 import { greatCircleKm } from './planner'
 import { asiaDate } from './state'
 import type { Activity, Place, State } from './types'
-import { activeActivities, activePlan, dateLong, dayOptions, dayPreference, e, icon, money } from './ui'
+import { activeActivities, activePlan, dateLong, dayOptions, dayPreference, e, icon, money, tripStart } from './ui'
 
 const alerts: Record<string, string> = {
   '2026-12-05': 'El maratón afecta a los accesos de Marina Bay. Prioriza el MRT.',
@@ -24,6 +24,17 @@ function countdown(instant: number, now: number) {
   const minutes = Math.max(0, Math.ceil((instant - now) / 60_000))
   if (!minutes) return 'Ahora'
   return minutes < 60 ? `En ${minutes} min` : `En ${Math.floor(minutes / 60)} h ${minutes % 60} min`
+}
+
+function localDate(now: Date) {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
+function tripCountdown(now: number) {
+  const minutes = Math.max(0, Math.ceil((tripStart - now) / 60_000))
+  const days = Math.floor(minutes / 1440)
+  const hours = Math.floor((minutes % 1440) / 60)
+  return days ? `${days} ${days === 1 ? 'día' : 'días'} y ${hours} h` : hours ? `${hours} h` : `${minutes % 60} min`
 }
 
 function nearbyPlaces(state: State, date: string, place: Place, candidates: Place[], itinerary: Activity[]) {
@@ -53,14 +64,15 @@ export function mountToday(element: HTMLElement, app: AppContext) {
     const state = app.getState()
     const places = app.places()
     const now = new Date()
-    const actualDate = asiaDate(now)
+    const beforeTrip = now.valueOf() < tripStart
+    const actualDate = beforeTrip ? localDate(now) : asiaDate(now)
     const chosen = app.todayPreview()
-    const date = chosen ?? (actualDate < days[0].date ? '2026-12-04' : actualDate)
+    const date = chosen ?? actualDate
     const preview = date !== actualDate
     const day = days.find(entry => entry.date === date)
     const cityCode = day?.city === 'kl' && (date !== '2026-12-07' || preview || now.valueOf() >= Date.parse('2026-12-07T16:10:00+08:00')) ? 'kl' : 'sg'
     const transferPreview = date === '2026-12-07' && preview
-    const cityName = !day ? 'Viaje finalizado' : day.city === 'air' ? 'En ruta' : transferPreview ? 'Singapur a Kuala Lumpur' : cityCode === 'sg' ? 'Singapur' : 'Kuala Lumpur'
+    const cityName = !day ? beforeTrip && !preview ? 'Próximo viaje' : 'Viaje finalizado' : day.city === 'air' ? 'En ruta' : transferPreview ? 'Singapur a Kuala Lumpur' : cityCode === 'sg' ? 'Singapur' : 'Kuala Lumpur'
     const cityPhoto = day && day.city !== 'air' && !transferPreview ? cityCode : ''
     const localClock = now.toLocaleTimeString('es-ES', { timeZone: 'Asia/Singapore', hour: '2-digit', minute: '2-digit' })
     const itinerary = activeActivities(state, date)
@@ -77,7 +89,8 @@ export function mountToday(element: HTMLElement, app: AppContext) {
     const alternatives = next && place && !next.fixed && !next.flight && !state.family ? nearbyPlaces(state,date,place,places,itinerary) : []
     const totals = financeTotals(state)
     const finance = financeSummary(state, now)
-    const title = preview ? 'Vista previa' : `${localClock} · hora de Asia`
+    const departureLabel = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' }).format(new Date(tripStart))
+    const title = beforeTrip && !preview ? `Faltan ${tripCountdown(now.valueOf())} · salida ${departureLabel}` : preview ? 'Vista previa' : `${localClock} · hora de Asia`
     const nextCard = next ? `<article class="today-next"><div class="today-next-line"><span>${next.fixed || next.flight ? 'Próxima reserva' : 'Próxima actividad'}</span><span>${!preview && nextStart != null ? countdown(nextStart, now.valueOf()) : e(next.time || 'Horario flexible')}</span></div>
       <h2>${e(next.title)}</h2><p class="today-next-info">${next.time ? `<time>${e(next.time)}</time>` : ''}${e(place?.area || next.zone)}${estimatedTrip ? ` <span>· ${e(estimatedTrip)}</span>` : ''}</p>
       <div class="today-next-actions">${place || next.address ? todayAction('directions','Cómo llegar',next.id,'navigation','primary') : next.flight ? '<a class="button primary" href="#viaje">Ver vuelo</a>' : ''}${todayAction('done','Marcar realizada',next.id,'check')}</div>
@@ -85,22 +98,25 @@ export function mountToday(element: HTMLElement, app: AppContext) {
     </article>` : `<article class="today-next empty-next"><h2>${day ? 'El plan está al día' : 'Sin actividades para hoy'}</h2><p>${day ? 'Consulta lo que queda o prepara otra jornada.' : 'Elige una jornada para ver el itinerario.'}</p></article>`
     element.innerHTML = `<section class="today-shell-v3">
       <header class="today-heading" data-city="${cityPhoto}"><div><p>${e(cityName)}</p><h1>Hoy</h1><p>${e(dateLong(date))}</p><small>${e(title)}</small></div></header>
-      <div class="today-date-row"><label><span class="sr-only">Fecha de Hoy</span><select aria-label="Fecha de Hoy" data-today-date>${day ? '' : '<option value="" selected>Elegir jornada</option>'}${dayOptions(day ? date : '')}</select></label>${chosen ? todayAction('reset','Volver a hoy') : ''}${todayAction('plan','Ver plan',date,'agenda')}</div>
-      ${nextCard}
+      <div class="today-date-row"><label><span class="sr-only">Fecha de Hoy</span><select aria-label="Fecha de Hoy" data-today-date>${dayOptions(date)}</select></label>${chosen ? todayAction('reset','Volver a hoy') : ''}${todayAction('plan',beforeTrip && !preview ? 'Ver primer día' : 'Ver plan',day?.date ?? days[0].date,'agenda')}</div>
+      ${beforeTrip && !preview ? `<section class="today-pretrip"><div><span class="today-pretrip-kicker">Primer vuelo · 3 dic</span><h2>El viaje empieza en ${e(tripCountdown(now.valueOf()))}</h2><p>La agenda todavía no ha comenzado. Aquí verás el día en curso cuando estés de viaje.</p></div><div class="today-pretrip-tasks"><strong>Preparativos pendientes</strong>${(() => { const priority = ['flights','star-access','tsim','hotspot','passports','mdac','sgac','insurance']; const open = priority.map(id => checklist.find(item => item.id === id)).filter((item): item is typeof checklist[number] => !!item && !state.checks.includes(item.id)).slice(0,4); return open.length ? `<ul>${open.map(item => `<li>${e(item.title)}</li>`).join('')}</ul>` : '<p>Los preparativos prioritarios aparecen completados.</p>' })()}</div><div class="today-pretrip-links"><a class="button primary" href="#preparativos">Revisar preparativos</a><a class="button" href="#viaje">Vuelos y hoteles</a><a class="button" href="#offline">Preparar modo offline</a></div></section>` : `${nextCard}
       ${alerts[date] ? `<aside class="today-alert">${icon('alert')}<span>${e(alerts[date])}</span></aside>` : ''}
       <section class="today-wallet" aria-label="Gastos y presupuesto"><div><span>${preview ? 'Gastos del día' : 'Gastado hoy'}</span><strong>${money((totals.byDay.get(date) ?? 0) / 100)}</strong></div><div><span>Restante en destino</span><strong>${finance.destinationRemaining == null ? 'Sin fijar' : money(finance.destinationRemaining / 100)}</strong></div>${todayAction('spend','Anotar gasto','','plus','primary')}${finance.pendingCount ? `<p class="today-pending-money">${finance.pendingCount} ${finance.pendingCount === 1 ? 'importe pendiente' : 'importes pendientes'} de cambio</p>` : ''}</section>
-      <section class="today-list"><div class="today-section-title"><h2>Actividades pendientes</h2><span>Plan ${activePlan(state,date)}</span></div>
-      ${pending.length ? `<ol>${pending.map(item => `<li><time>${e(item.time || '—')}</time><span>${e(item.title)}</span>${item.fixed || item.flight ? icon('shield') : ''}</li>`).join('')}</ol>` : '<p>No quedan actividades pendientes.</p>'}
+      <section class="today-list"><div class="today-section-title"><h2>Más actividades pendientes</h2><span>Plan ${activePlan(state,date)}</span></div>
+      ${pending.some(item => item.id !== next?.id) ? `<ol>${pending.filter(item => item.id !== next?.id).map(item => `<li><time>${e(item.time || '—')}</time><span>${e(item.title)}</span>${item.fixed || item.flight ? icon('shield') : ''}</li>`).join('')}</ol>` : '<p>No hay más actividades pendientes.</p>'}
       ${reservation ? `<p class="today-reservation">${icon('clock')} ${e(reservation.time || 'Hora pendiente')} · ${e(reservation.title)}</p>` : ''}
       <progress aria-label="Progreso del plan" value="${itinerary.filter(item=>item.status==='done').length}" max="${itinerary.length || 1}"></progress>
-      ${alternatives.length ? `<details class="today-detail"><summary>Alternativas cercanas</summary>${alternatives.map(({ candidate, km }) => `<div class="today-alternative"><span>${e(candidate.name)} <small>${e(candidate.area)} · ${km.toFixed(1)} km en línea recta</small></span><button type="button" class="button" data-today="replace" data-id="${e(next?.id)}" data-place="${e(candidate.id)}">Sustituir</button></div>`).join('')}</details>` : ''}</section>
+      ${alternatives.length ? `<details class="today-detail"><summary>Alternativas cercanas</summary>${alternatives.map(({ candidate, km }) => `<div class="today-alternative"><span>${e(candidate.name)} <small>${e(candidate.area)} · ${km.toFixed(1)} km en línea recta</small></span><button type="button" class="button" data-today="replace" data-id="${e(next?.id)}" data-place="${e(candidate.id)}">Sustituir</button></div>`).join('')}</details>` : ''}</section>`}
     </section>`
   }
   render()
   element.addEventListener('change', event => {
     const input = event.target
-    if (!(input instanceof HTMLSelectElement) || !input.matches('[data-today-date]') || !days.some(item => item.date === input.value)) return
-    app.setTodayPreview(input.value)
+    if (!(input instanceof HTMLSelectElement) || !input.matches('[data-today-date]')) return
+    const now = new Date()
+    const currentDate = now.valueOf() < tripStart ? localDate(now) : asiaDate(now)
+    if (!days.some(item => item.date === input.value) && input.value !== currentDate) return
+    app.setTodayPreview(input.value === currentDate ? undefined : input.value)
     render()
   })
   element.addEventListener('click', event => {

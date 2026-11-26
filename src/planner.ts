@@ -19,6 +19,7 @@ const baseActivity = (seed: Partial<Activity> = {}): Activity => ({
 
 export type PlannerWarning = { kind: 'overlap' | 'rest' | 'busy' | 'distance'; activityIds: string[]; message: string }
 const dialogControllers = new WeakMap<HTMLDialogElement, AbortController>()
+const isTransfer = (item: Activity) => /traslado|transfer/i.test(item.title) || item.zone.includes('→')
 
 export function plannerWarnings(items: Activity[], places: Place[]): PlannerWarning[] {
   const warnings: PlannerWarning[] = []
@@ -26,23 +27,26 @@ export function plannerWarnings(items: Activity[], places: Place[]): PlannerWarn
     .sort((a, b) => minute(a.time)! - minute(b.time)!)
   for (let i = 0; i < scheduled.length; i++) {
     const current = scheduled[i]
-    const end = minute(current.time)! + current.duration
-    if (i && minute(current.time)! < minute(scheduled[i - 1].time)! + scheduled[i - 1].duration) {
-      warnings.push({ kind: 'overlap', activityIds: [scheduled[i - 1].id, current.id], message: `Se solapa «${current.title}» con la actividad anterior.` })
+    const previous = scheduled[i - 1]
+    const gap = previous ? minute(current.time)! - (minute(previous.time)! + previous.duration) : Infinity
+    const overlaps = gap < 0
+    if (previous && overlaps) {
+      warnings.push({ kind: 'overlap', activityIds: [previous.id, current.id], message: `Se solapa «${current.title}» con la actividad anterior.` })
     }
-    if (i && minute(current.time)! - (minute(scheduled[i - 1].time)! + scheduled[i - 1].duration) < 30) {
-      warnings.push({ kind: 'rest', activityIds: [scheduled[i - 1].id, current.id], message: `Deja al menos 30 minutos de margen antes de «${current.title}».` })
+    const samePlace = Boolean(previous?.placeId && previous.placeId === current.placeId)
+    const sameZone = Boolean(previous?.zone && current.zone && previous.zone === current.zone)
+    if (previous && !overlaps && gap < 30 && !samePlace && !sameZone && !isTransfer(previous) && !isTransfer(current)) {
+      warnings.push({ kind: 'rest', activityIds: [previous.id, current.id], message: `Deja al menos 30 minutos de margen antes de «${current.title}».` })
     }
-    const from = places.find(place => place.id === scheduled[i - 1]?.placeId)
+    const from = places.find(place => place.id === previous?.placeId)
     const to = places.find(place => place.id === current.placeId)
-    if (i && from?.lat != null && from.lon != null && to?.lat != null && to.lon != null) {
+    if (previous && !sameZone && !samePlace && !isTransfer(previous) && !isTransfer(current) && from?.lat != null && from.lon != null && to?.lat != null && to.lon != null) {
       const km = greatCircleKm(from.lat, from.lon, to.lat, to.lon)
-      const gap = minute(current.time)! - (minute(scheduled[i - 1].time)! + scheduled[i - 1].duration)
       if (km > 8 && gap < 60) warnings.push({ kind: 'distance', activityIds: [scheduled[i - 1].id, current.id], message: `Hay unos ${Math.round(km)} km en línea recta hasta «${current.title}» y poco margen. La distancia real por carretera puede ser mayor.` })
     }
-    void end
   }
-  if (scheduled.length > 5) warnings.push({ kind: 'busy', activityIds: scheduled.map(item => item.id), message: 'El día tiene más de cinco actividades con hora. Valora dejar alguna como opcional.' })
+  const visits = scheduled.filter(item => item.placeId && item.priority !== 'pausa' && !item.flight && !isTransfer(item) && !['changi','mi-rochor','star-residence','kul-airport'].includes(item.placeId))
+  if (visits.length > 5) warnings.push({ kind: 'busy', activityIds: visits.map(item => item.id), message: 'El día tiene más de cinco visitas con hora. Valora dejar alguna como idea opcional.' })
   return warnings
 }
 

@@ -73,7 +73,9 @@ export const getPlace = (state: State, id: string) => allPlaces(state).find(plac
 export const getDay = (date: string) => days.find(day => day.date === date) ?? days[0]
 export const cityHotel = (location: Place['city']) => location === 'sg' ? 'mi-rochor' : 'star-residence'
 export function activeDay(now: Date): Day | undefined { return days.find(day => day.date === asiaDate(now)) }
-export function planningDay(now: Date) { return activeDay(now)?.date ?? '2026-12-04' }
+export function planningDay(now: Date) {
+  return activeDay(now)?.date ?? (asiaDate(now) < days[0].date ? days[0].date : '2026-12-04')
+}
 
 export function dayPreference(state: State, date: string): { preferences: string[]; active: 'A' | 'B' } {
   const value = state.dayPreferences[date]
@@ -132,4 +134,4 @@ export const money = (value: number, currency = 'EUR') => new Intl.NumberFormat(
 export const sourceLink = (url?: string, label = 'Fuente oficial') => url?.startsWith('https://') ? `<a class="text-link" href="${e(url)}" target="_blank" rel="noopener noreferrer">${e(label)}</a>` : ''
 export const button = (label: string, action: string, image = '', cls = '', id = '') => `<button type="button" class="button ${cls}" data-action="${action}"${id ? ` data-id="${e(id)}"` : ''}>${image ? icon(image) : ''}${e(label)}</button>`
 export const title = (name: string, description: string, actions = '') => `<header class="page-head"><div><h1>${e(name)}</h1><p>${e(description)}</p></div>${actions ? `<div class="actions">${actions}</div>` : ''}</header>`
-export function offlineText(ready: boolean) { return !navigator.onLine ? (ready ? 'Modo offline' : 'Sin conexión') : ready ? 'Disponible offline' : 'Preparando offline' }
+export function offlineText() { return navigator.onLine ? 'Con conexión' : 'Sin conexión' }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { asiaDate, convertAmount, createInitialState, escapeHTML, loadState, parseBackup, saveState, serializeBackup, stampChanges, STORAGE_KEY, toSafeCSVCell, validateState, type StorageLike } from '../src/state';
+import { asiaDate, convertAmount, createInitialState, escapeHTML, loadState, parseBackup, refreshBaseActivities, saveState, serializeBackup, stampChanges, STORAGE_KEY, toSafeCSVCell, validateState, type StorageLike } from '../src/state';
 import type { Activity, Expense, State } from '../src/types';
 import { baseActivities } from '../src/data';
 
@@ -47,6 +47,24 @@ test('migrates a V1 edit as a child of the stable initial revision',()=>{
   const id=baseActivities[0].id,revision=migrated.meta.records[`activity:${id}`];
   assert.deepEqual(revision.parents,[original.meta.records[`activity:${id}`].revision]);
   assert.equal(migrated.activities.find(item=>item.id===id)?.time,'17:00');
+});
+
+test('refreshes untouched itinerary seed rows while preserving personal edits and avoiding deleted rows',()=>{
+  const oldSeed=baseActivities.filter(item=>item.id!=='transfer-changi-sg').map(item=>item.id==='jewel-arrival'?{...item,date:'2026-12-04',time:'17:30'}:item.id==='helix-mbs'?{...item,time:'10:15'}:item);
+  const original=createInitialState(oldSeed,['passports'],'device-test');
+  const customized=stampChanges(original,{...original,activities:original.activities.map(item=>item.id==='jewel-arrival'?{...item,title:'Mi versión de Jewel'}:item)},'device-test',new Date('2026-11-26T00:00:00.000Z'));
+  const refreshed=refreshBaseActivities(customized,['jewel-arrival','helix-mbs','transfer-changi-sg']);
+  assert.equal(refreshed.activities.find(item=>item.id==='jewel-arrival')?.title,'Mi versión de Jewel');
+  assert.equal(refreshed.activities.find(item=>item.id==='jewel-arrival')?.time,'17:30');
+  assert.equal(refreshed.activities.find(item=>item.id==='helix-mbs')?.time,'10:45');
+  assert.equal(refreshed.activities.find(item=>item.id==='transfer-changi-sg')?.time,'10:00');
+  assert.deepEqual(refreshed.checks,['passports']);
+  assert.ok(refreshed.meta.records['activity:helix-mbs'].parents.includes(original.meta.records['activity:helix-mbs'].revision));
+  const otherDevice=refreshBaseActivities(createInitialState(oldSeed,['passports'],'device-other'),['jewel-arrival','helix-mbs','transfer-changi-sg']);
+  assert.equal(otherDevice.meta.records['activity:helix-mbs'].revision,refreshed.meta.records['activity:helix-mbs'].revision);
+  assert.equal(validateState(refreshed).activities.find(item=>item.id==='helix-mbs')?.time,'10:45');
+  const deleted=stampChanges(original,{...original,activities:original.activities.filter(item=>item.id!=='helix-mbs')},'device-test',new Date('2026-11-26T00:00:00.000Z'));
+  assert.ok(!refreshBaseActivities(deleted,['helix-mbs']).activities.some(item=>item.id==='helix-mbs'));
 });
 
 test('loads V1 state and persists migrated V2 data under the same key',()=>{
