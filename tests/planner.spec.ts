@@ -112,8 +112,8 @@ test.describe('Planificador y HOY', () => {
     await page.getByLabel('Día de la agenda').fill('2026-12-05')
     await page.getByLabel('Día de la agenda').dispatchEvent('change')
 
-    const firstId = 'merlion-bay'
-    const secondId = 'helix-mbs'
+    const firstId = 'sg-breakfast-marina'
+    const secondId = 'merlion-bay'
     const first = page.locator(`.pl-activity[data-item="${firstId}"]`)
     const second = page.locator(`.pl-activity[data-item="${secondId}"]`)
     await expect(first).toBeVisible()
@@ -140,7 +140,7 @@ test.describe('Planificador y HOY', () => {
     await page.getByText('Más herramientas para organizar el día', { exact: true }).click()
     await page.getByRole('button', { name: 'Cronología' }).click()
     const firstTime = await page.locator('.pl-activity').first().locator('.pl-time').innerText()
-    expect(firstTime).toContain('09:30')
+    expect(firstTime).toContain('08:30')
     await page.getByText('Más herramientas para organizar el día', { exact: true }).click()
     await page.getByRole('button', { name: 'Semana' }).click()
     await expect(page.locator('.pl-day-section')).toHaveCount(7)
@@ -155,7 +155,7 @@ test.describe('Planificador y HOY', () => {
     await preview.selectOption('2026-12-05')
     await expect(page.locator('.today-heading')).toContainText('Singapur')
     await expect(page.locator('.today-heading small')).toHaveText('Vista previa')
-    await expect(page.getByRole('heading', { name: 'Merlion y paseo breve por Marina Bay' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Desayuno y traslado a Marina Bay' })).toBeVisible()
     await page.getByRole('button', { name: 'Volver a hoy' }).click()
     await expect(preview).toHaveValue('2026-12-04')
   })

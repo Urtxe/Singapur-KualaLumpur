@@ -8,6 +8,13 @@ type PlacePhoto = {
 
 // Keys use the same place IDs as the itinerary and filenames in public/places.
 export const placePhotos = new Map<string, PlacePhoto>([
+  ['artsci-museum', {
+    alt: 'Edificio con forma de loto del ArtScience Museum en Marina Bay',
+    author: 'Basile Morin',
+    source: 'https://commons.wikimedia.org/wiki/File:ArtScience_Museum,_Marina_Bay_Sands,_Singapore.jpg',
+    license: 'CC BY-SA 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+  }],
   ['aquaria', {
     alt: "Visitantes en el túnel submarino de Aquaria KLCC",
     author: "Phalinn Ooi from Kuala Lumpur, Malaysia",
@@ -21,6 +28,13 @@ export const placePhotos = new Map<string, PlacePhoto>([
     source: "https://commons.wikimedia.org/wiki/File:Batu_Caves_stairs_2022-05.jpg",
     license: "CC BY-SA 4.0",
     licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+  }],
+  ['brickfields', {
+    alt: 'Calle comercial de Little India en Brickfields, Kuala Lumpur',
+    author: 'Yun Huang Yong',
+    source: 'https://commons.wikimedia.org/wiki/File:Little_India,_Brickfields,_Kuala_Lumpur.jpg',
+    license: 'CC BY 2.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by/2.0',
   }],
   ['central-market', {
     alt: "Fachada azul y entrada de Central Market en Kuala Lumpur",
@@ -50,6 +64,13 @@ export const placePhotos = new Map<string, PlacePhoto>([
     license: "CC BY-SA 4.0",
     licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
   }],
+  ['flower-dome', {
+    alt: 'Interior ajardinado bajo la cúpula de cristal de Flower Dome',
+    author: 'Shiny Things',
+    source: 'https://commons.wikimedia.org/wiki/File:Flower_Dome,_Gardens_by_the_Bay,_Singapore_-_20120712-02.jpg',
+    license: 'CC BY 2.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by/2.0',
+  }],
   ['gardens', {
     alt: "Supertrees y jardines exteriores de Gardens by the Bay",
     author: "Shiny Things",
@@ -78,6 +99,13 @@ export const placePhotos = new Map<string, PlacePhoto>([
     license: "CC BY-SA 4.0",
     licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
   }],
+  ['kampung-baru', {
+    alt: 'Casa tradicional malaya entre edificios de Kuala Lumpur, en la zona de Kampung Baru',
+    author: 'Wandering Air',
+    source: 'https://commons.wikimedia.org/wiki/File:Traditional_Malay_house_near_Kampung_Periuk,_Kuala_Lumpur.jpg',
+    license: 'CC BY 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by/4.0',
+  }],
   ['kampong-glam', {
     alt: "Cúpula de Sultan Mosque vista desde las calles de Kampong Glam",
     author: "Chainwit",
@@ -92,6 +120,13 @@ export const placePhotos = new Map<string, PlacePhoto>([
     license: "CC BY-SA 3.0",
     licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
   }],
+  ['kwai-chai-hong', {
+    alt: 'Entrada con farolillos y murales del callejón Kwai Chai Hong',
+    author: 'Renek78',
+    source: 'https://commons.wikimedia.org/wiki/File:Kwai_Chai_Hong,_Kuala_Lumpur_in_May_2020_02.jpg',
+    license: 'CC BY-SA 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
+  }],
   ['lau-pa-sat', {
     alt: "Fachada del pabellón histórico de Lau Pa Sat en Singapur",
     author: "kallerna",
@@ -105,6 +140,13 @@ export const placePhotos = new Map<string, PlacePhoto>([
     source: "https://commons.wikimedia.org/wiki/File:Maxwell_Food_Centre.jpg",
     license: "CC BY-SA 4.0",
     licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+  }],
+  ['masjid-jamek', {
+    alt: 'Cúpulas y minaretes de Masjid Jamek Sultan Abdul Samad',
+    author: 'Jan Kranendonk',
+    source: 'https://commons.wikimedia.org/wiki/File:Masjid_Jamek_in_Kuala_Lumpur.jpg',
+    license: 'CC BY-SA 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0',
   }],
   ['merdeka', {
     alt: "Explanada y edificios de Merdeka Square en Kuala Lumpur",
@@ -127,6 +169,20 @@ export const placePhotos = new Map<string, PlacePhoto>([
     license: "CC BY-SA 3.0",
     licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
   }],
+  ['river-of-life', {
+    alt: 'River of Life junto a Masjid Jamek iluminado en Kuala Lumpur',
+    author: 'Renek78',
+    source: 'https://commons.wikimedia.org/wiki/File:River_of_Life,_Kuala_Lumpur_in_2023_01.jpg',
+    license: 'CC0 1.0',
+    licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+  }],
+  ['saloma-link', {
+    alt: 'Pasarela Saloma Link iluminada por la noche en Kuala Lumpur',
+    author: 'Sheikh Izham',
+    source: 'https://commons.wikimedia.org/wiki/File:Saloma_link_at_night.jpg',
+    license: 'CC BY 2.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by/2.0',
+  }],
   ['petaling', {
     alt: "Arco de entrada a Jalan Petaling en el Chinatown de Kuala Lumpur",
     author: "Shesmax",
@@ -147,6 +203,13 @@ export const placePhotos = new Map<string, PlacePhoto>([
     source: "https://commons.wikimedia.org/wiki/File:The_Marina_Bay_Sands_proudly_showing_off_its_lasers.jpg",
     license: "CC BY 2.0",
     licenseUrl: "https://creativecommons.org/licenses/by/2.0",
+  }],
+  ['skypark', {
+    alt: 'Vista panorámica de Marina Bay desde el mirador SkyPark',
+    author: 'Banej',
+    source: 'https://commons.wikimedia.org/wiki/File:Panorama_of_Marina_Bay,_Singapore_-_20181026.jpg',
+    license: 'CC BY-SA 3.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0',
   }],
   ['supertrees', {
     alt: "Supertree Grove iluminado durante Garden Rhapsody",
