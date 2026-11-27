@@ -2,7 +2,7 @@ import { alerts, checklist, days, rainPlans, sources, transport } from './data'
 import { connectionGuide, placeResearch } from './guide-view'
 import { localEvents } from './guide-data'
 import { eventProgramme, eventSources, eventTiming } from './event-markup'
-import { placePhotos } from './place-photos'
+import { placePhoto, placePhotoCredit } from './place-photos'
 import { hoursStatus, visits, walkDetails } from './travel-guide'
 import type { Place, State } from './types'
 import { activeActivities, allPlaces, button, city, dateShort, dayOptions, e, icon, kind, mapSearch, option, sourceLink, title } from './ui'
@@ -16,16 +16,16 @@ export interface PlaceView { tab: 'list' | 'map'; date: string; query: string; c
 
 function placeCard(place: Place, state: State) {
   const favorite = state.favorites.includes(place.id)
-  const photo = placePhotos.get(place.id)
+  const photo = placePhoto(place.id)
   const visit = visits.get(place.id)
   const favoriteButton = `<button type="button" class="icon-button favorite${favorite ? ' chosen' : ''}" data-action="favorite" data-id="${e(place.id)}" aria-pressed="${favorite}" aria-label="${favorite ? 'Quitar de' : 'Añadir a'} favoritos: ${e(place.name)}">${icon('star')}</button>`
   return `<article class="card place-card explore-place" data-place="${e(place.id)}">
-    ${photo ? `<div class="explore-photo-wrap"><img class="explore-photo" src="${import.meta.env.BASE_URL}places/${e(photo.file ?? place.id)}.webp" alt="${e(photo.alt)}" width="840" height="430" loading="lazy">${favoriteButton}</div>` : ''}
+    ${photo ? `<div class="explore-photo-wrap"><img class="explore-photo" src="${e(photo.src)}" alt="${e(photo.alt)}" width="840" height="430" loading="lazy">${favoriteButton}</div>` : ''}
     <div class="explore-place-body"><div class="explore-place-top"><div class="explore-place-tags"><span class="tag ${place.kind === 'must' ? 'ok' : ''}">${kind[place.kind]}</span><span>${icon('lugares')} ${e(place.area)}</span></div>${photo ? '' : favoriteButton}</div>
     <h2>${e(place.name)}</h2><p class="explore-reason">${e(place.description)}</p>
     <div class="explore-facts"><span><small>Apertura</small><strong>${visit ? hoursStatus[visit.hoursStatus] : 'Horario por confirmar'}</strong></span><span><small>Precio orientativo</small><strong>${e(visit?.price ? 'Ver tarifa en la ficha' : place.price)}</strong></span></div>
     <details><summary>Detalles del lugar</summary>${placeResearch(place,state)}
-      ${photo ? `<p class="fineprint">Foto de ${e(photo.author)} · ${sourceLink(photo.source,'Original')} · ${photo.licenseUrl ? sourceLink(photo.licenseUrl,photo.license) : e(photo.license)} · Adaptada y optimizada para la app bajo ${e(photo.license)}</p>` : ''}</details>
+      ${photo ? `<p class="fineprint">${placePhotoCredit(photo)}</p>` : ''}</details>
     <div class="actions explore-card-actions">${button('Añadir al plan', 'place-add', 'plus', 'primary compact', place.id)}<button type="button" class="button compact" data-action="directions" data-id="${e(place.id)}" aria-label="Cómo llegar a ${e(place.name)}">${icon('navigation')} Cómo llegar</button><a class="button compact" href="${e(mapSearch(place))}" target="_blank" rel="noopener noreferrer">Maps</a>${state.customPlaces.some(item => item.id === place.id) ? button('Editar lugar', 'edit-place', '', 'compact', place.id) : ''}</div></div></article>`
 }
 

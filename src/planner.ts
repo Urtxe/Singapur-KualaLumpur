@@ -5,6 +5,7 @@ import { placeGuides } from './guide-data'
 import { eventSources, eventTiming } from './event-markup'
 import { visitFacts } from './guide-view'
 import { eventForActivity, visits, walkDetails, walksToActivity } from './travel-guide'
+import { placePhoto, placePhotoCredit } from './place-photos'
 
 const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 const currency = (value: unknown): Currency => value === 'SGD' || value === 'MYR' ? value : 'EUR'
@@ -78,6 +79,7 @@ function placeName(placeId: string, places: Place[]) { return places.find(place 
 
 function activityCard(item: Activity, places: Place[], reordering: boolean) {
   const place = places.find(entry => entry.id === item.placeId)
+  const photo = placePhoto(item.placeId)
   const fixed = protectedActivity(item)
   const canReorder = reordering && !fixed
   const id = escapeAttr(item.id)
@@ -87,7 +89,8 @@ function activityCard(item: Activity, places: Place[], reordering: boolean) {
     <h3 class="pl-row-heading"><button type="button" class="pl-open" data-pl-action="details" data-id="${id}" aria-haspopup="dialog" aria-label="Ver ${title}">
       <span class="pl-time">${item.time ? esc(item.time) : 'Sin hora'}</span><span class="pl-row-name"><strong>${title}</strong><span class="pl-meta">
       ${zone ? `<span>${esc(zone)}</span>` : ''}${item.flight === 'confirmed' ? '<b class="pl-fixed">VUELO CONFIRMADO</b>' : item.flight === 'provisional' ? '<b class="pl-plan-b">VUELO PROVISIONAL</b>' : ''}
-      ${item.fixed && !item.flight ? '<b class="pl-fixed">RESERVA FIJA</b>' : ''}${item.plan === 'B' ? '<b class="pl-plan-b">PLAN B</b>' : ''}${item.status === 'skipped' ? '<b>Omitida</b>' : ''}</span></span>${icon('chevron-right','pl-row-chevron')}
+      ${item.fixed && !item.flight ? '<b class="pl-fixed">RESERVA FIJA</b>' : ''}${item.plan === 'B' ? '<b class="pl-plan-b">PLAN B</b>' : ''}${item.status === 'skipped' ? '<b>Omitida</b>' : ''}</span></span>
+      ${photo ? `<img class="pl-place-thumb" src="${escapeAttr(photo.src)}" alt="" width="48" height="48" loading="lazy" decoding="async" draggable="false">` : ''}${icon('chevron-right','pl-row-chevron')}
     </button></h3>
     ${canReorder ? `<button class="pl-grip" type="button" aria-label="Reordenar ${title} con las flechas arriba y abajo" data-pl-action="grab" data-id="${id}">⠿</button>` : fixed ? `<span class="pl-complete-lock"><span class="sr-only">${item.status === 'done' ? 'Realizada' : 'Protegida'}</span>${icon(item.status === 'done' ? 'check' : 'shield')}</span>` : `<button type="button" class="pl-status" aria-label="Marcar realizada: ${title}" data-pl-action="toggle-done" data-id="${id}">○</button>`}
   </article>`
@@ -95,6 +98,7 @@ function activityCard(item: Activity, places: Place[], reordering: boolean) {
 
 function activityDetails(app: AppContext, item: Activity, opener: HTMLElement, onAction: (action: string, item: Activity, dialog: HTMLDialogElement) => void) {
   const place = app.places().find(entry => entry.id === item.placeId)
+  const photo = placePhoto(item.placeId)
   const event = eventForActivity(item)
   const status = item.status === 'done' ? 'Realizada' : item.status === 'skipped' ? 'Omitida' : 'Pendiente'
   const facts = [
@@ -108,6 +112,7 @@ function activityDetails(app: AppContext, item: Activity, opener: HTMLElement, o
   const canReopen = item.status === 'done' && !item.fixed && !item.flight
   const dialog = app.openDialog(item.title || 'Actividad sin título', `<div class="pl-activity-detail">
     <p class="pl-detail-meta">${[dayLabel(item.date), item.localTime || item.time || 'Horario flexible', item.flight === 'provisional' ? 'Horario provisional' : `${item.duration} min en el plan`, status].map(esc).join(' · ')}</p>
+    ${photo ? `<figure class="pl-detail-photo"><img src="${escapeAttr(photo.src)}" alt="${escapeAttr(photo.alt)}" width="840" height="430" decoding="async"><figcaption class="fineprint">${placePhotoCredit(photo)}</figcaption></figure>` : ''}
     <div class="actions pl-detail-actions">${place || item.address ? button('directions','Cómo llegar',item.id,'pl-primary') : ''}${button('note','Añadir nota',item.id)}</div>
     ${item.detail ? `<p class="pl-detail-intro">${esc(item.detail)}</p>` : ''}
     ${event ? `<section class="pl-guide"><h3>Horario del evento</h3>${eventTiming(event)}<div class="actions">${eventSources(event)}</div></section>` : ''}

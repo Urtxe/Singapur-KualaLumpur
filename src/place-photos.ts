@@ -1,3 +1,5 @@
+import { e, sourceLink } from './ui'
+
 type PlacePhoto = {
   alt: string
   author: string
@@ -339,3 +341,13 @@ export const placePhotos = new Map<string, PlacePhoto>([
     file: 'kampong-glam',
   }],
 ])
+
+export function placePhoto(placeId: string) {
+  const photo = placePhotos.get(placeId)
+  return photo && { ...photo, src: `${import.meta.env.BASE_URL}places/${photo.file ?? placeId}.webp` }
+}
+
+export function placePhotoCredit(photo: PlacePhoto) {
+  const license = photo.licenseUrl ? sourceLink(photo.licenseUrl, photo.license) : e(photo.license)
+  return `Foto de ${e(photo.author)} · ${sourceLink(photo.source,'Original')} · ${license} · Adaptada y optimizada para la app bajo ${e(photo.license)}`
+}

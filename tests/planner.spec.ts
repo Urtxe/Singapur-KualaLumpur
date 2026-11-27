@@ -26,6 +26,35 @@ test.describe('Planificador y HOY', () => {
     await expect(details).toBeFocused()
   })
 
+  test('muestra la misma foto del lugar como miniatura y en la ficha de la actividad', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 650 })
+    await page.goto(`${baseURL}#agenda`)
+    const day = page.getByLabel('Día de la agenda')
+    await day.fill('2026-12-05')
+    await day.dispatchEvent('change')
+
+    const row = page.locator('.pl-activity[data-item="merlion-bay"]')
+    const thumbnail = row.locator('img')
+    await thumbnail.scrollIntoViewIfNeeded()
+    await expect(thumbnail).toHaveAttribute('src', './places/merlion.webp')
+    await expect.poll(() => thumbnail.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0)
+    await expect(page.locator('.pl-activity[data-item="sg-breakfast-marina"] img')).toHaveCount(0)
+    const thumbnailWidth = await thumbnail.evaluate(image => image.getBoundingClientRect().width)
+    expect(thumbnailWidth).toBeLessThan(60)
+
+    const opener = row.getByRole('button', { name: /^Ver / })
+    await opener.click()
+    const dialog = page.getByRole('dialog')
+    const image = dialog.getByRole('img', { name: /Merlion/ })
+    await expect(image).toHaveAttribute('src', './places/merlion.webp')
+    await expect.poll(() => image.evaluate((photo: HTMLImageElement) => photo.naturalWidth)).toBeGreaterThan(0)
+    expect(await image.evaluate(photo => photo.getBoundingClientRect().width)).toBeGreaterThan(thumbnailWidth * 3)
+    await expect(dialog.getByRole('link', { name: 'Original' })).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320)
+    await dialog.getByRole('button', { name: 'Cerrar', exact: true }).click()
+    await expect(opener).toBeFocused()
+  })
+
   test('abre y cierra el formulario centrado sin desplazar el plan en un móvil compacto', async ({ page, isMobile }) => {
     test.skip(!isMobile, 'El formulario táctil se comprueba en los perfiles de móvil.')
     await page.setViewportSize({ width: 320, height: 568 })
