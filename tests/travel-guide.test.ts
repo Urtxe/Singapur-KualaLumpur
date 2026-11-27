@@ -2,10 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BASE_UPDATED_ACTIVITY_IDS, baseActivities, places } from '../src/data'
 import { guidePlaces, localEvents } from '../src/guide-data'
-import { eventOccursOn, visits } from '../src/travel-guide'
+import { eventOccursOn, loadTravelGuide, visits } from '../src/travel-guide'
 import { walkingRoutes } from '../src/walking-routes'
 
-test('every published place has visit guidance and a separate HTTPS source', () => {
+test('every published place has visit guidance and a separate HTTPS source', async () => {
+  await loadTravelGuide()
   const catalogue = new Map([...places, ...guidePlaces].map(place => [place.id, place]))
   assert.deepEqual([...visits.keys()].sort(), [...catalogue.keys()].sort())
   for (const [id, visit] of visits) {

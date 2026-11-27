@@ -2,13 +2,18 @@ import { baseActivities } from './data'
 import { localEvents, type LocalEvent } from './guide-data'
 import type { Activity } from './types'
 import { dateShort, e, sourceLink } from './ui'
-import { singaporeVisits } from './visit-details-sg'
-import { kualaLumpurVisits } from './visit-details-kl'
 import type { VisitDetails } from './visit-details-types'
-import { walkingRoutes, type WalkLeg } from './walking-routes'
+import type { WalkLeg } from './walking-routes'
 
 export const reviewedOn = '27 nov 2026'
-export const visits: ReadonlyMap<string, VisitDetails> = new Map(Object.entries({ ...singaporeVisits, ...kualaLumpurVisits }))
+export let visits: ReadonlyMap<string, VisitDetails> = new Map()
+let walkingRoutes: Record<string, WalkLeg[]> = {}
+
+export async function loadTravelGuide() {
+  const { visitCatalogue, walkingRoutes: routes } = await import('./travel-guide-data')
+  visits = visitCatalogue
+  walkingRoutes = routes
+}
 export const hoursStatus: Record<VisitDetails['hoursStatus'], string> = {
   published: 'Horario publicado',
   variable: 'Horario variable',

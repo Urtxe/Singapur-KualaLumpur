@@ -17,6 +17,7 @@ import { mountOffline } from './offline-view'
 import { getAttachment, removeAttachment, storeAttachment } from './vault'
 import { eventFilters, eventSeed, eventsView, foodFilters, foodResults, gastronomy, safetyView } from './guide-view'
 import { journalView } from './journal'
+import { loadTravelGuide, visits } from './travel-guide'
 import type { Activity, Note, Place, State } from './types'
 import { activeActivities, activePlan, activitiesForPlan, allPlaces, button, cityHotel, directions, e, getDay, getPlace, icon, labels, mapSearch, offlineText, option, placeQuery, planningDay, primaryRoutes, publicPlaces, routes, type Route } from './ui'
 import { placeList, placeView, preparations, transportView, travel, type PlaceView } from './views'
@@ -169,6 +170,27 @@ function render(focusPage = false) {
   const open = [...content.querySelectorAll<HTMLDetailsElement>('details[open]')].map(details => details.closest<HTMLElement>('[data-activity], [data-place]')?.dataset).filter(Boolean)
   for (const url of journalImages) URL.revokeObjectURL(url)
   journalImages.clear()
+  if (!visits.size && (section === 'agenda' || section === 'lugares' || section === 'viaje' || section === 'transporte')) {
+    const loading = document.createElement('p')
+    loading.setAttribute('role', 'status')
+    loading.textContent = 'Cargando la guía…'
+    content.replaceChildren(loading)
+    applyTheme()
+    updateTopbar()
+    void loadTravelGuide().then(() => {
+      if (loading.isConnected) render(focusPage)
+    }).catch(() => {
+      if (!loading.isConnected) return
+      const retry = document.createElement('button')
+      retry.type = 'button'
+      retry.className = 'button'
+      retry.textContent = 'Recargar la app'
+      retry.addEventListener('click', () => location.reload())
+      loading.textContent = 'No se pudo cargar la guía. '
+      loading.append(retry)
+    })
+    return
+  }
   const screens: Partial<Record<Route, () => string>> = {
     lugares: () => placeView(state, view), transporte: () => transportView(state),
     viaje: () => travel(state), preparativos: () => preparations(state), mas: moreView,
