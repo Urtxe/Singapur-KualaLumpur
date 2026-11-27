@@ -171,6 +171,7 @@ export function mountOffline(element: HTMLElement, app: AppContext, page: 'diagn
         else if (action === 'prepare') {
           busy = true; render();
           const result = await prepareOfflineCache();
+          window.dispatchEvent(new Event('asia-trip-cache-prepared'));
           status = result.complete ? `Viaje preparado: ${result.cached} recursos comprobados en la caché.` : `Preparación incompleta. Faltan ${result.missing} recursos; conecta a internet y vuelve a intentarlo.`;
           busy = false;
           await refresh();

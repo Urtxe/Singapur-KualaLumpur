@@ -8,7 +8,7 @@ import { BASE_UPDATED_ACTIVITY_IDS, baseActivities, days } from './data'
 import type { AppContext } from './app-api'
 import { dialogContent, noteForm, placeForm } from './dialogs'
 import { asiaDate, createInitialState, loadState, refreshBaseActivities, saveState, stampChanges, STORAGE_KEY } from './state'
-import { registerSW } from './sw-register'
+import { checkOfflineCache, registerSW } from './sw-register'
 import { mountPlanner, openActivity } from './planner'
 import { mountToday } from './today'
 import { mountFinance, openExpense } from './finance'
@@ -31,13 +31,15 @@ root.innerHTML = `
   </aside>
   <div class="workspace">
     <header class="topbar"><a class="mobile-brand" href="#inicio"><span class="brand-icon">${icon('compass')}</span><strong>SNG-KLL</strong></a>
-      <div class="top-actions"><a href="#offline" id="offline-status" class="offline-status" aria-label="Diagnóstico offline">${icon('wifi')} <span role="status"></span></a>
+      <div class="top-actions"><a href="#offline" id="offline-status" class="offline-status" aria-label="Diagnóstico offline" aria-describedby="offline-status-text">${icon('wifi')} <span id="offline-status-text" role="status"></span></a>
         <button type="button" class="button theme-shortcut" data-action="toggle-theme"></button></div></header>
     <main id="content" tabindex="-1"></main>
   </div>
   <dialog id="modal" aria-labelledby="dialog-title"></dialog><div class="toast" role="status" aria-live="polite" hidden></div>`
 
 const themeShortcut = root.querySelector<HTMLButtonElement>('.theme-shortcut')!
+const offlineStatus = root.querySelector<HTMLAnchorElement>('#offline-status')!
+const offlineStatusText = offlineStatus.querySelector('span')!
 const content = document.querySelector<HTMLElement>('#content')!
 const modal = document.querySelector<HTMLDialogElement>('#modal')!
 const toast = document.querySelector<HTMLElement>('.toast')!
@@ -61,6 +63,8 @@ let isCorrupt = stored.status === 'corrupt'
 let storageWarning = stored.status === 'unavailable' ? 'El almacenamiento local no está disponible. Los cambios requieren un navegador con almacenamiento habilitado.' : isCorrupt ? 'La copia local no se pudo leer. Puedes recuperarla en Compartir e importar.' : ''
 let agendaDate = planningDay(new Date())
 let todayPreview: string | undefined
+let offlineReady = false
+let offlineCheck = 0
 function placeDate(date: string) {
   if (getDay(date).city !== 'air') return date
   return days.find(day => day.date >= date && day.city !== 'air')?.date ?? [...days].reverse().find(day => day.date <= date && day.city !== 'air')?.date ?? date
@@ -131,8 +135,18 @@ function applyTheme() {
 }
 
 function updateTopbar() {
-  document.querySelector('#offline-status span')!.textContent = offlineText()
-  document.querySelector('#offline-status')!.classList.toggle('ready', navigator.onLine)
+  const label = offlineText(offlineReady)
+  if (offlineStatusText.textContent !== label) offlineStatusText.textContent = label
+  offlineStatus.classList.toggle('ready', offlineReady)
+}
+
+async function refreshOfflineStatus() {
+  const check = ++offlineCheck
+  const worker = navigator.serviceWorker?.controller
+  const cache = worker ? await checkOfflineCache().catch(() => null) : null
+  if (check !== offlineCheck || worker !== navigator.serviceWorker?.controller) return
+  offlineReady = cache?.complete === true
+  updateTopbar()
 }
 
 function actionSelector(element: HTMLElement | null) {
@@ -543,14 +557,27 @@ window.addEventListener('hashchange', () => {
   }
   render(true)
 })
-function connectionChanged() { if (route() === 'inicio' && !modal.open) render(); else updateTopbar() }
+function connectionChanged() {
+  if (route() === 'inicio' && !modal.open) render()
+  else updateTopbar()
+  void refreshOfflineStatus()
+}
 window.addEventListener('online', connectionChanged)
 window.addEventListener('offline', connectionChanged)
 systemAppearance.addEventListener('change', applyTheme)
-navigator.serviceWorker?.addEventListener('controllerchange', () => updateTopbar())
+navigator.serviceWorker?.addEventListener('controllerchange', () => {
+  offlineReady = false
+  updateTopbar()
+  void refreshOfflineStatus()
+})
+window.addEventListener('asia-trip-cache-prepared', () => { void refreshOfflineStatus() })
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') void refreshOfflineStatus()
+})
 window.setInterval(() => {
   updateTopbar()
   if (route() === 'inicio' && !modal.open && !content.contains(document.activeElement)) render()
 }, 60_000)
 render()
 registerSW()
+void refreshOfflineStatus()

@@ -134,4 +134,7 @@ export const money = (value: number, currency = 'EUR') => new Intl.NumberFormat(
 export const sourceLink = (url?: string, label = 'Fuente oficial') => url?.startsWith('https://') ? `<a class="text-link" href="${e(url)}" target="_blank" rel="noopener noreferrer">${e(label)}</a>` : ''
 export const button = (label: string, action: string, image = '', cls = '', id = '') => `<button type="button" class="button ${cls}" data-action="${action}"${id ? ` data-id="${e(id)}"` : ''}>${image ? icon(image) : ''}${e(label)}</button>`
 export const title = (name: string, description: string, actions = '') => `<header class="page-head"><div><h1>${e(name)}</h1><p>${e(description)}</p></div>${actions ? `<div class="actions">${actions}</div>` : ''}</header>`
-export function offlineText() { return navigator.onLine ? 'Con conexión' : 'Sin conexión' }
+export function offlineText(ready: boolean) {
+  if (ready) return navigator.onLine ? 'Listo offline' : 'Modo offline'
+  return navigator.onLine ? 'Con conexión' : 'Sin conexión'
+}

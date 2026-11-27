@@ -214,8 +214,7 @@ test('works offline under the subpath and keeps a keyboard path at 375 px', asyn
     page.on('pageerror',error=>errors.push(error.message));
     page.on('console',entry=>{ if(entry.type()==='error') errors.push(entry.text()); });
     await page.goto(base);
-    await expect(page.getByText('Con conexión',{exact:true})).toBeVisible();
-    await page.evaluate(async () => { if ('serviceWorker' in navigator) await navigator.serviceWorker.ready; });
+    await expect(page.getByText('Listo offline',{exact:true})).toBeVisible({timeout:20_000});
     await page.keyboard.press('Tab');
     await expect(page.locator(':focus')).toBeVisible();
     for (const route of ['inicio','agenda','lugares','gastos','compartir','viaje']) {
@@ -232,6 +231,7 @@ test('works offline under the subpath and keeps a keyboard path at 375 px', asyn
     await context.setOffline(true);
     await page.goto(`${base}#agenda`);
     await page.reload();
+    await expect(page.getByText('Modo offline',{exact:true})).toBeVisible();
     await expect(page.locator('.pl-activity').first()).toBeVisible();
     await page.goto(`${base}#gastronomia`);
     await expect(page.getByRole('heading',{name:'Gastronomía',exact:true})).toBeVisible();
