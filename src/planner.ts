@@ -1,12 +1,11 @@
 import type { Activity, Currency, Place, State } from './types'
 import type { AppContext } from './app-api'
-import { activeActivities, activePlan, activitiesForPlan, dayPreference, withDayPreference } from './ui'
+import { activeActivities, activePlan, activitiesForPlan, city, dayPreference, getDay, icon, sourceLink, withDayPreference } from './ui'
 import { placeGuides } from './guide-data'
 
 const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 const currency = (value: unknown): Currency => value === 'SGD' || value === 'MYR' ? value : 'EUR'
 const makeId = () => `activity-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`
-const todayAsia = (now = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Singapore', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
 const readSession = (key: string) => { try { return sessionStorage.getItem(key) ?? '' } catch { return '' } }
 const writeSession = (key: string, value: string) => { try { sessionStorage.setItem(key, value) } catch { /* Selection is a convenience; the itinerary itself is saved separately. */ } }
 const minute = (time: string) => /^\d{2}:\d{2}$/.test(time) ? Number(time.slice(0, 2)) * 60 + Number(time.slice(3)) : null
@@ -74,16 +73,50 @@ function modeButton(mode: string, selected: string, label: string) { return `<bu
 function planButton(plan: 'A' | 'B', selected: 'A' | 'B') { return `<button type="button" class="pl-mode${plan === selected ? ' is-active' : ''}" data-pl-action="plan" data-plan="${plan}" aria-pressed="${plan === selected}">Plan ${plan}</button>` }
 function placeName(placeId: string, places: Place[]) { return places.find(place => place.id === placeId)?.name ?? '' }
 
-function activityCard(item: Activity, index: number, count: number, app: AppContext, places: Place[]) {
+function activityCard(item: Activity, places: Place[], reordering: boolean) {
   const place = places.find(entry => entry.id === item.placeId)
-  const fixed = !!item.fixed || !!item.flight || item.status === 'done'
-  const image = place?.photo && /^(?:\/|\.\/|\.\.\/)/.test(place.photo) ? `<img class="pl-place-photo" src="${escapeAttr(place.photo)}" alt="" width="54" height="54" loading="lazy">` : ''
-  return `<article class="pl-activity${item.status === 'done' ? ' is-done' : ''}${item.priority === 'pausa' ? ' is-rest' : ''}" ${attrs(item)} draggable="${!fixed}">
-    <div class="pl-rail">${fixed ? '<span class="pl-grip pl-grip-locked" aria-hidden="true">•</span>' : `<button class="pl-grip" type="button" aria-label="Arrastrar ${esc(item.title)}" data-pl-action="grab" data-id="${escapeAttr(item.id)}">⠿</button>`}<span class="pl-time">${item.time ? esc(item.time) : '— —'}<small>${item.duration} min</small></span></div>
-    <div class="pl-activity-body">${image}<div class="pl-meta"><span>${esc(item.zone || place?.area || 'Sin zona')}</span>${item.flight === 'confirmed' ? '<b class="pl-fixed">VUELO CONFIRMADO</b>' : item.flight === 'provisional' ? '<b class="pl-plan-b">VUELO PROVISIONAL</b>' : ''}${item.fixed ? '<b class="pl-fixed">RESERVA FIJA</b>' : ''}${item.plan === 'B' ? '<b class="pl-plan-b">PLAN B</b>' : ''}</div><div class="pl-title-row"><h3>${esc(item.title || 'Actividad sin título')}</h3>${fixed ? `<span class="pl-complete-lock">${item.status === 'done' ? 'Realizada' : 'Protegida'}</span>` : `<button type="button" class="pl-status${item.status === 'done' ? ' is-done' : ''}" aria-label="${item.status === 'done' ? 'Marcar pendiente' : 'Marcar realizada'}: ${esc(item.title)}" data-pl-action="toggle-done" data-id="${escapeAttr(item.id)}">${item.status === 'done' ? '✓' : '○'}</button>`}</div>
-    ${item.detail ? `<p class="pl-description">${esc(item.detail)}</p>` : ''}<div class="pl-tags">${item.priority === 'principal' ? '<span>Imprescindible</span>' : item.priority === 'pausa' ? '<span>Descanso</span>' : '<span>Opcional</span>'}${item.duration ? `<span>${item.duration} min</span>` : ''}${place ? `<span>${esc(place.name)}</span>` : ''}</div>
-    <div class="pl-controls">${place ? `<button type="button" class="pl-button" data-pl-action="directions" data-id="${escapeAttr(item.id)}">Cómo llegar</button>` : ''}<button type="button" class="pl-more" aria-label="Más opciones de ${esc(item.title)}" data-pl-action="more" data-id="${escapeAttr(item.id)}">•••</button></div>
-    <div class="pl-more-menu" hidden>${item.status === 'done' && !item.fixed && !item.flight ? button('mark-pending', 'Marcar pendiente', item.id) : !fixed ? `${button('edit', 'Editar', item.id)}${button('duplicate', 'Duplicar', item.id)}${button('skip', 'Omitir', item.id)}${button('move', 'Mover a otro día', item.id)}${button('archive', 'Archivar', item.id)}${button('delete', 'Eliminar y guardar en papelera', item.id)}` : '<span class="pl-protected-note">Esta reserva o actividad está protegida.</span>'}</div></div></article>`
+  const fixed = protectedActivity(item)
+  const canReorder = reordering && !fixed
+  const id = escapeAttr(item.id)
+  const title = esc(item.title || 'Actividad sin título')
+  const zone = item.zone || place?.area
+  return `<article class="pl-activity" ${attrs(item)} draggable="${canReorder}">
+    <h3 class="pl-row-heading"><button type="button" class="pl-open" data-pl-action="details" data-id="${id}" aria-haspopup="dialog" aria-label="Ver ${title}">
+      <span class="pl-time">${item.time ? esc(item.time) : 'Sin hora'}</span><span class="pl-row-name"><strong>${title}</strong><span class="pl-meta">
+      ${zone ? `<span>${esc(zone)}</span>` : ''}${item.flight === 'confirmed' ? '<b class="pl-fixed">VUELO CONFIRMADO</b>' : item.flight === 'provisional' ? '<b class="pl-plan-b">VUELO PROVISIONAL</b>' : ''}
+      ${item.fixed && !item.flight ? '<b class="pl-fixed">RESERVA FIJA</b>' : ''}${item.plan === 'B' ? '<b class="pl-plan-b">PLAN B</b>' : ''}${item.status === 'skipped' ? '<b>Omitida</b>' : ''}</span></span>${icon('chevron-right','pl-row-chevron')}
+    </button></h3>
+    ${canReorder ? `<button class="pl-grip" type="button" aria-label="Reordenar ${title} con las flechas arriba y abajo" data-pl-action="grab" data-id="${id}">⠿</button>` : fixed ? `<span class="pl-complete-lock"><span class="sr-only">${item.status === 'done' ? 'Realizada' : 'Protegida'}</span>${icon(item.status === 'done' ? 'check' : 'shield')}</span>` : `<button type="button" class="pl-status" aria-label="Marcar realizada: ${title}" data-pl-action="toggle-done" data-id="${id}">○</button>`}
+  </article>`
+}
+
+function activityDetails(app: AppContext, item: Activity, onAction: (action: string, item: Activity, dialog: HTMLDialogElement) => void) {
+  const place = app.places().find(entry => entry.id === item.placeId)
+  const status = item.status === 'done' ? 'Realizada' : item.status === 'skipped' ? 'Omitida' : 'Pendiente'
+  const facts = [
+    ['Entradas', item.tickets], ['Reserva', item.booking], ['Dirección', item.address || place?.address],
+    ['Desde la parada anterior', item.fromPrevious], ['Desde el alojamiento', item.fromHotel],
+    ['Transporte', item.transport], ['Si llueve', item.alternate || item.rain], ['Accesibilidad', item.access || place?.access],
+    ['Comida', item.food], ['Notas de la actividad', item.notes],
+  ].filter(([, value]) => value)
+  const notes = app.getState().notes.filter(note => note.activityId === item.id)
+  const canChange = !protectedActivity(item)
+  const canReopen = item.status === 'done' && !item.fixed && !item.flight
+  const dialog = app.openDialog(item.title || 'Actividad sin título', `<div class="pl-activity-detail">
+    <p class="pl-detail-meta">${[dayLabel(item.date), item.localTime || item.time || 'Horario flexible', `${item.duration} min`, status].map(esc).join(' · ')}</p>
+    <div class="actions pl-detail-actions">${place || item.address ? button('directions','Cómo llegar',item.id,'pl-primary') : ''}${button('note','Añadir nota',item.id)}</div>
+    ${item.detail ? `<p class="pl-detail-intro">${esc(item.detail)}</p>` : ''}
+    <dl class="pl-detail-facts">${facts.map(([label,value]) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>
+    ${sourceLink(item.officialUrl || place?.source)}
+    ${notes.length ? `<section class="pl-detail-notes"><h3>Diario</h3>${notes.map(note => `<p>${esc(note.text)}</p>`).join('')}</section>` : ''}
+    ${canChange || canReopen ? `<details class="pl-detail-options"><summary>Gestionar actividad</summary><div class="actions">
+      ${canChange ? `${button('edit','Editar',item.id)}${button('move','Mover a otro día',item.id)}${button('duplicate','Duplicar',item.id)}${button('skip','Omitir',item.id)}${button('archive','Archivar',item.id)}${button('delete','Eliminar y guardar en papelera',item.id,'pl-danger')}` : button('mark-pending','Marcar pendiente',item.id)}
+    </div></details>` : '<p class="pl-protected-note">Esta reserva o actividad está protegida.</p>'}
+  </div>`)
+  dialog.querySelector('.pl-activity-detail')?.addEventListener('click', event => {
+    const action = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('button[data-pl-action]')?.dataset.plAction : undefined
+    if (action) onAction(action, item, dialog)
+  })
 }
 
 function formHTML(state: State, date: string, item?: Activity, places: Place[] = [], editing = !!item?.id) {
@@ -128,7 +161,7 @@ function bindDialog(dialog: HTMLDialogElement, app: AppContext) {
     if (!target) return
     const id = target.dataset.id ?? ''
     if (target.dataset.plAction === 'close') dialog.close()
-    if (target.dataset.plAction === 'delete' && removeActivity(app, id, 'delete')) dialog.close()
+    if (target.dataset.plAction === 'delete') removeActivity(app, id, 'delete', dialog)
   }, { signal: controller.signal })
   dialog.addEventListener('submit', event => {
     const form = event.target instanceof HTMLFormElement && event.target.matches('[data-pl-form="activity"]') ? event.target : null
@@ -183,17 +216,19 @@ function bindDialog(dialog: HTMLDialogElement, app: AppContext) {
   if (matchMedia('(pointer: fine)').matches) dialog.querySelector<HTMLInputElement>('[name="title"]')?.focus({ preventScroll: true })
 }
 
-function removeActivity(app: AppContext, id: string, action: 'delete' | 'archive') {
+function removeActivity(app: AppContext, id: string, action: 'delete' | 'archive', dialog: HTMLDialogElement) {
   const state = app.getState()
   const item = state.activities.find(entry => entry.id === id)
   if (!item) return false
   if (protectedActivity(item)) { app.notify('No se pueden archivar ni eliminar reservas fijas, vuelos o actividades realizadas.'); return false }
-  if (action === 'archive') {
-    const activities = state.activities.map(entry => entry.id === id ? { ...entry, archived: true } : entry)
-    return app.commit({ ...state, activities }, 'Actividad archivada. Puedes recuperarla en Archivadas.')
+  const archive = action === 'archive'
+  const next = archive
+    ? { ...state, activities: state.activities.map(entry => entry.id === id ? { ...entry, archived: true } : entry) }
+    : { ...state, activities: state.activities.filter(entry => entry.id !== id), trash: [...(state.trash ?? []).filter(entry => entry.id !== id), { ...item, archived: false }] }
+  if (app.commit(next)) {
+    dialog.close()
+    app.notify(archive ? 'Actividad archivada. Puedes recuperarla en Archivadas.' : 'Actividad eliminada. Puedes recuperarla en Papelera.')
   }
-  const trash = [...(state.trash ?? []).filter(entry => entry.id !== id), { ...item, archived: false }]
-  return app.commit({ ...state, activities: state.activities.filter(entry => entry.id !== id), trash }, 'Actividad eliminada. Puedes recuperarla en Papelera.')
 }
 
 function moveInDay(app: AppContext, id: string, offset: number) {
@@ -237,16 +272,16 @@ function viewedPlan(state: State, date: string): 'A' | 'B' {
   return saved === 'A' || saved === 'B' ? saved : activePlan(state, date)
 }
 
-function activityDay(app: AppContext, date: string, view: PlannerView, places: Place[], plan: 'A' | 'B' = 'A') {
+function activityDay(app: AppContext, date: string, view: PlannerView, places: Place[], plan: 'A' | 'B', reordering = false) {
   const state = app.getState()
   const items = (plan === activePlan(state, date) ? activeActivities(state, date) : state.activities.filter(item => item.date === date && !item.archived && ((item.plan ?? 'A') === plan || !!item.fixed || !!item.flight)))
   if (view === 'zones') {
     const groups = new Map<string, Activity[]>()
     for (const item of items) { const key = item.zone || places.find(place => place.id === item.placeId)?.area || 'Sin zona'; groups.set(key, [...groups.get(key) ?? [], item]) }
-    return [...groups].map(([zone, group]) => `<section class="pl-zone"><h3>${esc(zone)} <small>${group.length} paradas</small></h3>${group.map((item, index) => activityCard(item, index, group.length, app, places)).join('')}</section>`).join('') || `<div class="pl-empty">Aún no hay visitas. Añade una actividad o mueve una idea desde la bandeja.</div>`
+    return [...groups].map(([zone, group]) => `<section class="pl-zone"><h3>${esc(zone)} <small>${group.length} paradas</small></h3>${group.map(item => activityCard(item, places, false)).join('')}</section>`).join('') || `<div class="pl-empty">Aún no hay visitas. Añade una actividad o mueve una idea desde la bandeja.</div>`
   }
   const ordered = view === 'timeline' ? [...items].sort((a, b) => (minute(a.time) ?? 2000) - (minute(b.time) ?? 2000)) : items
-  return ordered.length ? ordered.map((item, index) => activityCard(item, index, ordered.length, app, places)).join('') : `<div class="pl-empty">Aún no hay visitas. Añade una actividad o mueve una idea desde la bandeja.</div>`
+  return ordered.length ? ordered.map(item => activityCard(item, places, reordering)).join('') : `<div class="pl-empty">Aún no hay visitas. Añade una actividad o mueve una idea desde la bandeja.</div>`
 }
 
 function ideaTray(app: AppContext, places: Place[]) {
@@ -305,13 +340,16 @@ function moveActivityToDate(app: AppContext, id: string) {
     return `<option value="${date}"${date === item.date ? ' selected' : ''}>${dayLabel(date)}</option>`
   }).join('')
   const dialog = app.openDialog('Mover actividad', `<form data-pl-move><label class="pl-field"><span>Nuevo día</span><select name="date">${options}</select></label><div class="pl-form-actions"><button class="pl-button pl-primary" type="submit">Mover</button><button class="pl-button" type="button" data-pl-action="close">Cancelar</button></div></form>`)
-  dialog.addEventListener('click', event => { if (event.target instanceof Element && event.target.closest('[data-pl-action="close"]')) dialog.close() })
-  dialog.addEventListener('submit', event => {
-    if (!(event.target instanceof HTMLFormElement) || !event.target.matches('[data-pl-move]')) return
+  const form = dialog.querySelector<HTMLFormElement>('[data-pl-move]')!
+  form.addEventListener('click', event => { if (event.target instanceof Element && event.target.closest('[data-pl-action="close"]')) dialog.close() })
+  form.addEventListener('submit', event => {
     event.preventDefault()
-    const date = String(new FormData(event.target).get('date') ?? '')
+    const date = String(new FormData(form).get('date') ?? '')
     const state = app.getState()
-    if (app.commit({ ...state, activities: state.activities.map(entry => entry.id === id ? { ...entry, date } : entry) }, 'Actividad trasladada.')) dialog.close()
+    if (app.commit({ ...state, activities: state.activities.map(entry => entry.id === id ? { ...entry, date } : entry) })) {
+      dialog.close()
+      app.notify('Actividad trasladada.')
+    }
   })
 }
 
@@ -322,6 +360,7 @@ function bindPlanner(element: HTMLElement, app: AppContext, selectedMode?: Plann
   let selectedPlan: 'A' | 'B' = viewedPlan(app.getState(), dateKey)
   let showArchived = readSession(`asia-trip-planner-archive:${dateKey}`) === 'true'
   let selectedZone = readSession(`asia-trip-planner-zone:${dateKey}`)
+  let reordering = readSession(`asia-trip-planner-reorder:${dateKey}`) === 'true'
   let dragId = ''
   let pointer: { id:number; activity:string; startY:number; y:number } | null = null
   const render = () => {
@@ -332,20 +371,21 @@ function bindPlanner(element: HTMLElement, app: AppContext, selectedMode?: Plann
     const activatedPlan = activePlan(state, date)
     const dayPrefs = dayPreference(state, date)
     const savedSnapshot = readDaySnapshot(date)
-    const city = date < '2026-12-07' ? 'SINGAPUR' : date > '2026-12-11' ? 'EN RUTA' : 'KUALA LUMPUR'
-    const dateButtons = Array.from({ length: 10 }, (_, index) => `2026-12-${String(index + 3).padStart(2, '0')}`)
+    const canReorder = mode === 'day' && items.filter(item => !protectedActivity(item)).length > 1
+    const isReordering = canReorder && reordering
     const weekday = new Date(`${date}T12:00:00Z`).getUTCDay()
     const mondayOffset = weekday === 0 ? -6 : 1 - weekday
     const weekDates = Array.from({ length: 7 }, (_, index) => dayDateRange(date, mondayOffset + index))
-    const shownDates = mode === 'week' ? weekDates : [date]
-    const daysHTML = shownDates.map(day => `<section class="pl-day-section"><div class="pl-day-heading"><div><span class="pl-kicker">${day < '2026-12-07' ? 'SINGAPUR' : day > '2026-12-11' ? 'EN RUTA' : 'KUALA LUMPUR'}</span><h2>${dayLabel(day)}</h2></div><button type="button" class="pl-day-open" data-pl-action="choose-day" data-date="${day}">Abrir día</button></div><div class="pl-timeline">${activityDay(app, day, 'day', places, selectedPlan)}</div></section>`).join('')
+    const daysHTML = mode === 'week' ? weekDates.map(day => `<section class="pl-day-section"><div class="pl-day-heading"><div><span class="pl-kicker">${esc(city[getDay(day).city])}</span><h2>${dayLabel(day)}</h2></div><button type="button" class="pl-day-open" data-pl-action="choose-day" data-date="${day}">Abrir día</button></div><div class="pl-timeline">${activityDay(app, day, 'day', places, selectedPlan)}</div></section>`).join('') : ''
     const warnings = plannerWarnings(items, places)
     const warningHTML = warnings.length ? `<aside class="pl-warnings"><strong>Revisa el ritmo</strong>${warnings.map(warning => `<p>${esc(warning.message)}</p>`).join('')}</aside>` : ''
     const archived = [...state.activities.filter(item => item.archived), ...(state.trash ?? [])]
-    element.innerHTML = `<section class="planner-shell"><header class="pl-hero"><div><span class="pl-kicker">${city}</span><h1>${dayLabel(date)}</h1></div><button class="pl-add" type="button" aria-label="Añadir actividad" data-pl-action="new">＋ <span>Añadir actividad</span></button></header>
-      <div class="pl-date-strip"><button type="button" class="pl-date-step" data-pl-action="date-prev" aria-label="Día anterior">Anterior</button><label><span class="pl-kicker">DÍA SELECCIONADO</span><input aria-label="Día de la agenda" type="date" min="2026-12-03" max="2026-12-12" value="${date}"></label><button type="button" class="pl-date-step" data-pl-action="date-next" aria-label="Día siguiente">Siguiente</button><div class="pl-day-pills">${dateButtons.map(day => `<button type="button" data-pl-action="choose-day" data-date="${day}" class="${day === date ? 'is-selected' : ''}">${day.slice(-2)}<small>${day === todayAsia() ? 'Hoy' : ''}</small></button>`).join('')}</div></div>
-      <div class="pl-section-head pl-plan-head"><div><span class="pl-kicker">${items.length} actividades</span><h2>Plan del día</h2></div><div class="pl-plan-switch">${planButton('A',selectedPlan)}${planButton('B',selectedPlan)}${selectedPlan !== activatedPlan ? button('activate-plan',`Activar Plan ${selectedPlan}`,'','pl-activate') : '<span class="pl-active-label">Activo</span>'}</div></div>
-      ${mode === 'week' ? daysHTML : `<div class="pl-timeline">${activityDay(app,date,mode,places,selectedPlan)}</div>`}${warningHTML}
+    element.innerHTML = `<section class="planner-shell"><header class="pl-hero"><div><span class="pl-kicker">${esc(city[getDay(date).city])}</span><h1>Planes</h1></div>
+      <div class="pl-hero-actions">${canReorder ? `<button type="button" class="pl-button pl-order-toggle" data-pl-action="reorder-mode" aria-pressed="${isReordering}">${isReordering ? 'Terminar' : 'Reordenar'}</button>` : ''}<button class="pl-add" type="button" aria-label="Añadir actividad" data-pl-action="new">＋ <span>Añadir actividad</span></button></div></header>
+      <div class="pl-date-strip" role="group" aria-label="Cambiar día"><button type="button" class="pl-date-step" data-pl-action="date-prev" aria-label="Día anterior"${date === '2026-12-03' ? ' disabled' : ''}>${icon('chevron-left')}</button><input aria-label="Día de la agenda" type="date" min="2026-12-03" max="2026-12-12" value="${date}"><button type="button" class="pl-date-step" data-pl-action="date-next" aria-label="Día siguiente"${date === '2026-12-12' ? ' disabled' : ''}>${icon('chevron-right')}</button></div>
+      <div class="pl-section-head pl-plan-head"><div><h2>${dayLabel(date)}</h2><span class="pl-kicker">${items.length} ${items.length === 1 ? 'actividad' : 'actividades'}</span></div><div class="pl-plan-switch">${planButton('A',selectedPlan)}${planButton('B',selectedPlan)}${selectedPlan !== activatedPlan ? button('activate-plan',`Activar Plan ${selectedPlan}`,'','pl-activate') : '<span class="pl-active-label">Activo</span>'}</div></div>
+      ${warningHTML}${isReordering ? '<p class="pl-order-help">Arrastra el asa o usa las flechas arriba y abajo con el asa enfocada.</p>' : ''}
+      ${mode === 'week' ? daysHTML : `<div class="pl-timeline">${activityDay(app,date,mode,places,selectedPlan,isReordering)}</div>`}
       <details class="pl-secondary"><summary>Más herramientas para organizar el día</summary><div class="pl-secondary-content"><div class="pl-secondary-actions">${button('save-version',savedSnapshot ? 'Guardar nueva versión' : 'Guardar versión del día')}${savedSnapshot ? button('restore-version','Recuperar versión guardada') : ''}${modeButton('week',mode,'Semana')}${modeButton('timeline',mode,'Cronología')}${modeButton('zones',mode,'Por zonas')}</div>
       <div class="pl-day-banner"><p>${esc(dayPrefs.preferences.length ? `Preferencias: ${dayPrefs.preferences.map(value => preferences.find(entry => entry[0] === value)?.[1]).filter(Boolean).join(' · ')}` : 'Elige el ritmo de esta jornada si te ayuda a organizarla.')}</p><div class="pl-templates"><label class="pl-zone-choice"><span class="sr-only">Zona de la plantilla</span><select aria-label="Zona de la plantilla" data-pl-zone><option value="">Todas las zonas</option>${[...new Set(places.map(place => place.area).filter(Boolean))].sort().map(zone => `<option value="${esc(zone)}"${zone === selectedZone ? ' selected' : ''}>${esc(zone)}</option>`).join('')}</select></label><button type="button" class="pl-button" data-pl-action="template-half">＋ Media jornada</button><button type="button" class="pl-button" data-pl-action="template-full">＋ Jornada completa</button></div></div>
       <section class="pl-preferences"><h3>Preferencias del día</h3><div class="pl-preference-list">${preferencesFor(state,date)}</div></section>${ideaTray(app,places)}
@@ -359,7 +399,35 @@ function bindPlanner(element: HTMLElement, app: AppContext, selectedMode?: Plann
     selectedPlan = viewedPlan(app.getState(), date)
     showArchived = readSession(`asia-trip-planner-archive:${date}`) === 'true'
     selectedZone = readSession(`asia-trip-planner-zone:${date}`)
+    reordering = readSession(`asia-trip-planner-reorder:${date}`) === 'true'
   }
+
+  function detailAction(action: string, item: Activity, dialog: HTMLDialogElement) {
+    const state = app.getState()
+    const id = item.id
+    if (action === 'directions') app.directions(item.placeId, id)
+    else if (action === 'note') app.quickNote(id)
+    else if (action === 'edit') openActivity(app, item)
+    else if (action === 'move') moveActivityToDate(app, id)
+    else if (action === 'delete' || action === 'archive') removeActivity(app, id, action, dialog)
+    else {
+      const update = (activities: Activity[], message: string) => {
+        if (app.commit({ ...state, activities })) {
+          dialog.close()
+          app.notify(message)
+        }
+      }
+      if (action === 'mark-pending' && item.status === 'done' && !item.fixed && !item.flight && window.confirm(`¿Marcar «${item.title}» como pendiente?`)) {
+        update(state.activities.map(entry => entry.id === id ? { ...entry, status: 'pending' } : entry), 'Actividad marcada como pendiente.')
+      } else if (action === 'skip' && !protectedActivity(item)) {
+        update(state.activities.map(entry => entry.id === id ? { ...entry, status: 'skipped' } : entry), 'Actividad omitida.')
+      } else if (action === 'duplicate' && !isProtectedAction(app, id)) {
+        const copy = baseActivity({ ...item, id: makeId(), title: `${item.title} (copia)`, status: 'pending', fixed: false, flight: undefined, custom: true })
+        update([...state.activities, copy], 'Actividad duplicada.')
+      }
+    }
+  }
+
   element.addEventListener('click', event => {
     const target = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-pl-action]') : null
     if (!target || !element.contains(target)) return
@@ -374,29 +442,36 @@ function bindPlanner(element: HTMLElement, app: AppContext, selectedMode?: Plann
     }
     else if (action === 'new-idea') openActivity(app, { date: '' })
     else if (action === 'edit' && item) openActivity(app, item)
-    else if (action === 'up') moveInDay(app, id, -1)
-    else if (action === 'down') moveInDay(app, id, 1)
-    else if (action === 'duplicate' && item && !isProtectedAction(app, id)) { const copy = baseActivity({ ...item, id: makeId(), title: `${item.title} (copia)`, status: 'pending', fixed: false, flight: undefined, custom: true }); app.commit({ ...state, activities: [...state.activities, copy] }, 'Actividad duplicada.') }
-    else if (action === 'move' && item) moveActivityToDate(app, id)
-    else if (action === 'delete' || action === 'archive') removeActivity(app, id, action)
-    else if (action === 'more') { const menu = target.closest('.pl-activity')?.querySelector<HTMLElement>('.pl-more-menu'); if (menu) menu.hidden = !menu.hidden }
+    else if (action === 'details' && item) {
+      target.focus({ preventScroll: true })
+      activityDetails(app, item, detailAction)
+    }
+    else if (action === 'reorder-mode') {
+      reordering = !reordering
+      writeSession(`asia-trip-planner-reorder:${date}`, String(reordering))
+      render()
+      element.querySelector<HTMLElement>('[data-pl-action="reorder-mode"]')?.focus({ preventScroll: true })
+    }
     else if (action === 'mode') { mode = target.dataset.mode as PlannerView; writeSession(`asia-trip-planner-mode:${date}`, mode); render() }
     else if (action === 'plan') { selectedPlan = target.dataset.plan === 'B' ? 'B' : 'A'; writeSession(`asia-trip-planner-plan:${date}`, selectedPlan); render() }
     else if (action === 'activate-plan') { if (app.commit(withDayPreference(state, date, { active: selectedPlan }), `Plan ${selectedPlan} activado para esta jornada.`)) render() }
     else if (action === 'save-version') { const snapshotItems = state.activities.filter(entry => entry.date === date); if (writeDaySnapshot(date, snapshotItems)) { app.notify('Versión del día guardada en este dispositivo.'); render() } else app.notify('No se pudo guardar la versión en este dispositivo.') }
     else if (action === 'restore-version') restoreDaySnapshot(app, date)
-    else if (action === 'mark-pending' && item?.status === 'done' && !item.fixed && !item.flight && window.confirm(`¿Marcar «${item.title}» como pendiente?`)) app.commit({ ...state, activities: state.activities.map(entry => entry.id === id ? { ...entry, status: 'pending' } : entry) }, 'Actividad marcada como pendiente.')
-    else if (action === 'skip' && item && !protectedActivity(item)) app.commit({ ...state, activities: state.activities.map(entry => entry.id === id ? { ...entry, status: 'skipped' } : entry) }, 'Actividad omitida.')
     else if (action === 'choose-day') { const nextDate = boundedTripDate(target.dataset.date ?? date); app.setSelectedDate(nextDate); restoreDayView(nextDate); render() }
     else if (action === 'date-prev' || action === 'date-next') { const nextDate = boundedTripDate(dayDateRange(date, action === 'date-prev' ? -1 : 1)); app.setSelectedDate(nextDate); restoreDayView(nextDate); render() }
     else if (action === 'toggle-archive') { showArchived = !showArchived; writeSession(`asia-trip-planner-archive:${date}`, String(showArchived)); render() }
     else if (action === 'template-half' || action === 'template-full') { const add = templateItems(state, date, app.places(), action === 'template-full', selectedZone); if (add.length) app.commit({ ...state, activities: [...state.activities, ...add] }, action === 'template-full' ? 'Plantilla de jornada completa añadida.' : 'Plantilla de media jornada añadida.'); else app.notify('No quedan lugares libres en esa zona para esta plantilla.') }
     else if (action === 'add-selected') { const select = element.querySelector<HTMLSelectElement>('[data-pl-multi]'); const picks = [...(select?.selectedOptions ?? [])].map(option => app.places().find(place => place.id === option.value)).filter((place): place is Place => !!place); if (picks.length) { app.commit({ ...state, activities: [...state.activities, ...picks.map(place => baseActivity({ date, title: place.name, placeId: place.id, zone: place.area, detail: place.description, custom: true }))] }, `${picks.length} lugares añadidos al día.`) } }
-    else if (action === 'directions' && item?.placeId) app.directions(item.placeId, item.id)
     else if (action === 'restore' && item) app.commit({ ...state, activities: state.activities.map(entry => entry.id === id ? { ...entry, archived: false } : entry) }, 'Actividad recuperada.')
     else if (action === 'restore-trash' && item) { const trash = (state.trash ?? []).filter(entry => entry.id !== id); app.commit({ ...state, trash, activities: [...state.activities, { ...item, archived: false }] }, 'Actividad restaurada.') }
     else if (action === 'use-plan' && item && !isProtectedAction(app, id)) app.commit({ ...state, activities: state.activities.map(entry => entry.id === id ? { ...entry, plan: 'A' } : entry) }, 'Alternativa trasladada al Plan A. Revisa los posibles solapamientos.')
     else if (action === 'toggle-done' && item && !isProtectedAction(app, id)) app.commit({ ...state, activities: state.activities.map(entry => entry.id === id ? { ...entry, status: 'done' } : entry) }, 'Actividad marcada como realizada.')
+  })
+  element.addEventListener('keydown', event => {
+    const grip = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>('[data-pl-action="grab"]') : null
+    if (!grip?.dataset.id || !['ArrowUp','ArrowDown'].includes(event.key)) return
+    event.preventDefault()
+    moveInDay(app, grip.dataset.id, event.key === 'ArrowUp' ? -1 : 1)
   })
   element.addEventListener('change', event => {
     const target = event.target instanceof HTMLElement ? event.target : null
@@ -411,9 +486,10 @@ function bindPlanner(element: HTMLElement, app: AppContext, selectedMode?: Plann
     else if (action === 'assign' && item) app.commit({ ...state, activities: state.activities.map(entry => entry.id === id ? { ...entry, date: (target as HTMLSelectElement).value } : entry) }, 'Idea asignada al día.')
     else if (action === 'preference') { const date = app.selectedDate(); const value = target.dataset.pref ?? ''; const current = new Set(dayPreference(state, date).preferences); if ((target as HTMLInputElement).checked) current.add(value); else current.delete(value); app.commit(withDayPreference(state, date, { preferences: [...current] }), 'Preferencias del día guardadas.') }
   })
-  element.addEventListener('dragstart', event => { const card = (event.target as Element).closest<HTMLElement>('[data-item]'); if (card) { dragId = card.dataset.item ?? ''; event.dataTransfer?.setData('text/plain', dragId); if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move' } })
+  element.addEventListener('dragstart', event => { const card = (event.target as Element).closest<HTMLElement>('.pl-activity[draggable="true"]'); if (card) { dragId = card.dataset.item ?? ''; event.dataTransfer?.setData('text/plain', dragId); if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move' } })
+  element.addEventListener('dragend', () => { dragId = '' })
   element.addEventListener('dragover', event => { if ((event.target as Element).closest('[data-item]')) event.preventDefault() })
-  element.addEventListener('drop', event => { const card = (event.target as Element).closest<HTMLElement>('[data-item]'); const target = card?.dataset.item ?? ''; const moving = dragId || event.dataTransfer?.getData('text/plain') || ''; if (moving && target) { event.preventDefault(); reorder(app,moving,target); dragId = '' } })
+  element.addEventListener('drop', event => { const card = (event.target as Element).closest<HTMLElement>('[data-item]'); const target = card?.dataset.item ?? ''; if (dragId && target) { event.preventDefault(); reorder(app,dragId,target); dragId = '' } })
   element.addEventListener('pointerdown', event => {
     const grip = (event.target as Element).closest<HTMLElement>('[data-pl-action="grab"]')
     if (!grip?.dataset.id || event.button !== 0 || pointer) return

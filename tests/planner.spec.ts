@@ -16,11 +16,14 @@ test.describe('Planificador y HOY', () => {
     await expect(activity).toBeVisible()
     await activity.getByRole('button', { name: 'Marcar realizada: Pausa junto al río' }).click()
     await expect(activity.locator('.pl-complete-lock')).toHaveText('Realizada')
-    await expect(activity.getByRole('button', { name: 'Editar' })).toHaveCount(0)
-    await activity.getByRole('button', { name: /Más opciones de/ }).click()
+    const details = activity.getByRole('button', { name: 'Ver Pausa junto al río' })
+    await details.click()
+    await page.getByText('Gestionar actividad', { exact: true }).click()
+    await expect(dialog.getByRole('button', { name: 'Editar', exact: true })).toHaveCount(0)
     page.once('dialog', dialog => dialog.accept())
-    await activity.getByRole('button', { name: 'Marcar pendiente' }).click()
+    await dialog.getByRole('button', { name: 'Marcar pendiente' }).click()
     await expect(activity.getByRole('button', { name: 'Marcar realizada: Pausa junto al río' })).toBeVisible()
+    await expect(details).toBeFocused()
   })
 
   test('abre y cierra el formulario centrado sin desplazar el plan en un móvil compacto', async ({ page, isMobile }) => {
@@ -65,9 +68,10 @@ test.describe('Planificador y HOY', () => {
     const flight = page.locator('.pl-activity[data-item="arrival-sin"]')
     await expect(flight).toBeVisible()
     await expect(flight).toHaveAttribute('draggable', 'false')
-    await expect(flight.getByRole('button', { name: 'Editar', exact: true })).toHaveCount(0)
-    await flight.getByRole('button', { name: 'Más opciones de Llegada, inmigración y equipaje' }).click()
-    await expect(flight.locator('.pl-protected-note')).toContainText('está protegida')
+    await flight.getByRole('button', { name: 'Ver Llegada, inmigración y equipaje' }).click()
+    const details = page.getByRole('dialog', { name: 'Llegada, inmigración y equipaje' })
+    await expect(details.getByRole('button', { name: 'Editar', exact: true })).toHaveCount(0)
+    await expect(details.locator('.pl-protected-note')).toContainText('está protegida')
   })
 
   test('permite alternar Plan A/B y editar una alternativa sin alterar Plan A', async ({ page }) => {
@@ -77,8 +81,9 @@ test.describe('Planificador y HOY', () => {
 
     const original = page.locator('.pl-activity[data-item="merlion-bay"]')
     await expect(original).toBeVisible()
-    await original.getByRole('button', { name: /Más opciones de/ }).click()
-    await original.getByRole('button', { name: 'Editar', exact: true }).click()
+    await original.getByRole('button', { name: 'Ver Merlion Park', exact: true }).click()
+    await page.getByText('Gestionar actividad', { exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Editar', exact: true }).click()
     const advanced = page.getByRole('dialog').locator('.pl-advanced')
     if ((await advanced.getAttribute('open')) === null) await advanced.locator('summary').click()
     await page.getByRole('dialog').locator('select[name="plan"]').selectOption('B')
@@ -92,8 +97,9 @@ test.describe('Planificador y HOY', () => {
     await page.getByRole('button', { name: 'Activar Plan B' }).click()
     await expect(page.getByText('Activo', { exact: true })).toBeVisible()
 
-    await alternate.getByRole('button', { name: /Más opciones de/ }).click()
-    await alternate.getByRole('button', { name: 'Editar', exact: true }).click()
+    await alternate.getByRole('button', { name: 'Ver Merlion Park', exact: true }).click()
+    await page.getByText('Gestionar actividad', { exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Editar', exact: true }).click()
     await page.getByRole('dialog').locator('[name="time"]').fill('10:10')
     await page.getByRole('dialog').getByRole('button', { name: 'Guardar actividad' }).click()
     await expect(page.locator('.pl-activity[data-item="merlion-bay"]')).toBeVisible()
@@ -117,6 +123,8 @@ test.describe('Planificador y HOY', () => {
     const first = page.locator(`.pl-activity[data-item="${firstId}"]`)
     const second = page.locator(`.pl-activity[data-item="${secondId}"]`)
     await expect(first).toBeVisible()
+    await expect(first.locator('[data-pl-action="grab"]')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Reordenar', exact: true }).tap()
     await first.evaluate(el => el.scrollIntoView({block:'start',behavior:'instant'}))
     const grip = first.locator('[data-pl-action="grab"]')
     await expect(grip).toBeInViewport()
@@ -136,6 +144,8 @@ test.describe('Planificador y HOY', () => {
     }
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
     await expect.poll(async () => page.locator('.pl-timeline .pl-activity').first().getAttribute('data-item')).toBe(secondId)
+    await page.getByRole('button', { name: 'Terminar', exact: true }).tap()
+    await expect(second.locator('[data-pl-action="grab"]')).toHaveCount(0)
 
     await page.getByText('Más herramientas para organizar el día', { exact: true }).click()
     await page.getByRole('button', { name: 'Cronología' }).click()

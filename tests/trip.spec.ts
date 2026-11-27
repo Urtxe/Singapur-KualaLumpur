@@ -37,8 +37,9 @@ test('persists edits to an original activity and moves a custom activity between
   await day.fill('2026-12-04');
   await day.dispatchEvent('change');
   const original = page.locator('.pl-activity[data-item="little-india"]');
-  await original.getByRole('button',{name:/Más opciones de/}).click();
-  await original.getByRole('button',{name:'Editar',exact:true}).click();
+  await original.getByRole('button',{name:/^Ver /}).click();
+  await page.getByText('Gestionar actividad',{exact:true}).click();
+  await page.getByRole('dialog').getByRole('button',{name:'Editar',exact:true}).click();
   let modal = page.getByRole('dialog');
   await modal.locator('[name="time"]').fill('09:17');
   await modal.getByRole('button',{name:'Guardar actividad'}).click();
@@ -52,8 +53,9 @@ test('persists edits to an original activity and moves a custom activity between
   await modal.locator('[name="time"]').fill('14:30');
   await modal.getByRole('button',{name:'Guardar actividad'}).click();
   const custom = page.locator('.pl-activity').filter({hasText:'Pausa de prueba'});
-  await custom.getByRole('button',{name:/Más opciones de/}).click();
-  await custom.getByRole('button',{name:'Mover a otro día'}).click();
+  await custom.getByRole('button',{name:'Ver Pausa de prueba',exact:true}).click();
+  await page.getByText('Gestionar actividad',{exact:true}).click();
+  await page.getByRole('dialog').getByRole('button',{name:'Mover a otro día'}).click();
   modal = page.getByRole('dialog',{name:'Mover actividad'});
   await modal.getByLabel('Nuevo día').selectOption('2026-12-05');
   await modal.getByRole('button',{name:'Mover',exact:true}).click();
@@ -61,7 +63,7 @@ test('persists edits to an original activity and moves a custom activity between
   await day.dispatchEvent('change');
   await expect(custom).toBeVisible();
   await custom.getByRole('button',{name:/Marcar realizada/}).click();
-  await expect(custom.getByText('Realizada',{exact:true})).toBeVisible();
+  await expect(custom.locator('.pl-complete-lock')).toHaveText('Realizada');
 });
 
 test('combines a plan from another phone with local expenses and deduplicates replay', async ({ browser }) => {

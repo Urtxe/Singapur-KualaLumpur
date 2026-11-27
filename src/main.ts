@@ -151,8 +151,10 @@ async function refreshOfflineStatus() {
 
 function actionSelector(element: HTMLElement | null) {
   const action = element?.dataset.action
+  const plannerAction = element?.dataset.plAction
   const id = element?.dataset.id
-  return action ? `[data-action="${CSS.escape(action)}"]${id ? `[data-id="${CSS.escape(id)}"]` : ''}` : ''
+  if (action) return `[data-action="${CSS.escape(action)}"]${id ? `[data-id="${CSS.escape(id)}"]` : ''}`
+  return plannerAction && id ? `[data-pl-action="${CSS.escape(plannerAction)}"][data-id="${CSS.escape(id)}"]` : ''
 }
 
 function render(focusPage = false) {
@@ -192,7 +194,13 @@ function render(focusPage = false) {
   if (focusPage) {
     content.focus({ preventScroll: true })
     window.scrollTo({ top: 0 })
-  } else if (focusTarget) content.querySelector<HTMLElement>(focusTarget)?.focus({ preventScroll: true })
+  } else if (focusTarget) {
+    const next = content.querySelector<HTMLElement>(focusTarget)
+    const rowOpener = focused?.dataset.plAction === 'toggle-done' && focused.dataset.id
+      ? content.querySelector<HTMLElement>(`.pl-open[data-id="${CSS.escape(focused.dataset.id)}"]`)
+      : null
+    ;(next ?? rowOpener)?.focus({ preventScroll: true })
+  }
 }
 
 function go(to: Route) {
@@ -302,6 +310,7 @@ function show(title: string, html: string) {
   if (!modal.open) returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
   modal.innerHTML = dialogContent(title, `<p class="modal-feedback storage-warning" role="status" hidden></p>${html}`)
   if (!modal.open) modal.showModal()
+  else modal.querySelector<HTMLElement>('[data-action="close-dialog"]')?.focus({ preventScroll: true })
   modal.scrollTop = 0
   return modal
 }
@@ -546,6 +555,7 @@ modal.addEventListener('close', () => {
   const opener = returnFocus
   returnFocus = null
   if (opener?.isConnected) opener.focus({ preventScroll: true })
+  else if (opener?.matches('.pl-open')) (content.querySelector<HTMLElement>(actionSelector(opener)) ?? content).focus({ preventScroll: true })
   else if (opener?.matches('.pl-add, .pl-add-float')) {
     content.querySelector<HTMLElement>(`.${opener.matches('.pl-add-float') ? 'pl-add-float' : 'pl-add'}`)?.focus({ preventScroll: true })
   }
