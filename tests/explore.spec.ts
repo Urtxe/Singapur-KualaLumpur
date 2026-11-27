@@ -61,6 +61,8 @@ test('loads a food photo, a reused place photo and approximate transport duratio
   const foodPhoto = page.locator('.food-photo').first();
   await foodPhoto.scrollIntoViewIfNeeded();
   await expect.poll(() => foodPhoto.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+  await page.getByText('Paradas para comer en Singapur', { exact: true }).click();
+  await expect(page.locator('.food-stops')).toContainText('08:00–22:00');
 
   await page.goto(`${base}#lugares`);
   await page.getByRole('button', { name: 'Todos los lugares', exact: true }).click();
@@ -72,9 +74,29 @@ test('loads a food photo, a reused place photo and approximate transport duratio
   await expect.poll(() => placePhoto.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
   await mosque.getByText('Detalles del lugar').click();
   await expect(mosque.getByText(/CC BY-SA 4[.]0/)).toBeVisible();
+  await expect(mosque).toContainText('10:00–12:00 y 14:00–16:00');
 
   await page.goto(`${base}#transporte`);
-  await expect(page.locator('.route-grid')).toContainText('26 nov 2026');
+  await expect(page.locator('.route-grid')).toContainText('27 nov 2026');
   await expect(page.locator('.route-grid')).toContainText('55–80 min');
   await expect(page.locator('.route-grid')).not.toContainText('Duración exacta pendiente');
+});
+
+test('shows the latest entry and actual walking leg from the plan on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(`${base}#agenda`);
+  const day = page.getByLabel('Día de la agenda');
+  await day.fill('2026-12-08');
+  await day.dispatchEvent('change');
+  await page.getByText('Paseos del plan base', { exact: true }).click();
+  await expect(page.locator('.travel-walks')).toContainText(/1[.]?700 m/);
+  await page.getByRole('button', { name: /Ver Torres Petronas: visita interior/ }).click();
+  const visit = page.getByRole('dialog');
+  await expect(visit).toContainText('la entrada reservada a las 09:30');
+  await visit.getByText(/Horario y visita/).click();
+  await expect(visit.getByText('Último acceso', { exact: true })).toBeVisible();
+  await expect(visit).toContainText('21:30');
+  await visit.getByText('Trayectos a pie de referencia').click();
+  await expect(visit.getByRole('link', { name: 'Trazado en OpenStreetMap' })).toHaveAttribute('href', /^https:\/\/routing[.]openstreetmap[.]de\//);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
 });

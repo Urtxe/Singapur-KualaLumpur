@@ -1,6 +1,13 @@
 import type { LocalEvent } from './guide-data'
 import { e, sourceLink } from './ui'
 
+export function eventTiming(event: LocalEvent) {
+  return `<dl class="event-timing" aria-label="Horario y duración">
+    <div><dt>Horario</dt><dd>${e(event.hours)}</dd></div>
+    <div><dt>Duración</dt><dd>${e(event.duration)}</dd></div>
+  </dl>`
+}
+
 export function eventProgramme(event: LocalEvent) {
   if (!event.programme?.length) return ''
   return `<section class="event-program" aria-label="${e(event.programmeTitle ?? 'Horarios del evento')}">

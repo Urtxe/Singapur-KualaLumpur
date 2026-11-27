@@ -71,10 +71,10 @@ export function mountToday(element: HTMLElement, app: AppContext) {
     const preview = date !== actualDate
     const preTripHome = beforeTrip && !preview
     const day = days.find(entry => entry.date === date)
-    const cityCode = day?.city === 'kl' && (date !== '2026-12-07' || preview || now.valueOf() >= Date.parse('2026-12-07T16:10:00+08:00')) ? 'kl' : 'sg'
-    const transferPreview = date === '2026-12-07' && preview
-    const cityName = preTripHome ? 'Próximo viaje' : !day ? 'Viaje finalizado' : day.city === 'air' ? 'En ruta' : transferPreview ? 'Singapur a Kuala Lumpur' : cityCode === 'sg' ? 'Singapur' : 'Kuala Lumpur'
-    const cityPhoto = preTripHome || (day && day.city !== 'air' && !transferPreview) ? cityCode : ''
+    const cityCode = day?.city === 'kl' ? 'kl' : 'sg'
+    const transferDay = date === '2026-12-07'
+    const cityName = preTripHome ? 'Próximo viaje' : !day ? 'Viaje finalizado' : day.city === 'air' ? 'En ruta' : transferDay ? 'Singapur a Kuala Lumpur' : cityCode === 'sg' ? 'Singapur' : 'Kuala Lumpur'
+    const cityPhoto = preTripHome || (day && day.city !== 'air' && !transferDay) ? cityCode : ''
     const localClock = now.toLocaleTimeString('es-ES', { timeZone: 'Asia/Singapore', hour: '2-digit', minute: '2-digit' })
     const itinerary = activeActivities(state, date)
     const pending = itinerary.filter(item => item.status === 'pending')

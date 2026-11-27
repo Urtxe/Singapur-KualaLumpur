@@ -2,6 +2,9 @@ import type { Activity, Currency, Place, State } from './types'
 import type { AppContext } from './app-api'
 import { activeActivities, activePlan, activitiesForPlan, city, dayPreference, getDay, icon, sourceLink, withDayPreference } from './ui'
 import { placeGuides } from './guide-data'
+import { eventSources, eventTiming } from './event-markup'
+import { visitFacts } from './guide-view'
+import { eventForActivity, visits, walkDetails, walksToActivity } from './travel-guide'
 
 const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 const currency = (value: unknown): Currency => value === 'SGD' || value === 'MYR' ? value : 'EUR'
@@ -92,6 +95,7 @@ function activityCard(item: Activity, places: Place[], reordering: boolean) {
 
 function activityDetails(app: AppContext, item: Activity, onAction: (action: string, item: Activity, dialog: HTMLDialogElement) => void) {
   const place = app.places().find(entry => entry.id === item.placeId)
+  const event = eventForActivity(item)
   const status = item.status === 'done' ? 'Realizada' : item.status === 'skipped' ? 'Omitida' : 'Pendiente'
   const facts = [
     ['Entradas', item.tickets], ['Reserva', item.booking], ['Dirección', item.address || place?.address],
@@ -103,11 +107,14 @@ function activityDetails(app: AppContext, item: Activity, onAction: (action: str
   const canChange = !protectedActivity(item)
   const canReopen = item.status === 'done' && !item.fixed && !item.flight
   const dialog = app.openDialog(item.title || 'Actividad sin título', `<div class="pl-activity-detail">
-    <p class="pl-detail-meta">${[dayLabel(item.date), item.localTime || item.time || 'Horario flexible', `${item.duration} min`, status].map(esc).join(' · ')}</p>
+    <p class="pl-detail-meta">${[dayLabel(item.date), item.localTime || item.time || 'Horario flexible', item.flight === 'provisional' ? 'Horario provisional' : `${item.duration} min en el plan`, status].map(esc).join(' · ')}</p>
     <div class="actions pl-detail-actions">${place || item.address ? button('directions','Cómo llegar',item.id,'pl-primary') : ''}${button('note','Añadir nota',item.id)}</div>
     ${item.detail ? `<p class="pl-detail-intro">${esc(item.detail)}</p>` : ''}
+    ${event ? `<section class="pl-guide"><h3>Horario del evento</h3>${eventTiming(event)}<div class="actions">${eventSources(event)}</div></section>` : ''}
     <dl class="pl-detail-facts">${facts.map(([label,value]) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>
     ${sourceLink(item.officialUrl || place?.source)}
+    ${place && visits.has(place.id) ? `<details class="travel-walks"><summary>Horario y visita · ${esc(place.name)}</summary>${visitFacts(place)}</details>` : ''}
+    ${walksToActivity(item)}
     ${notes.length ? `<section class="pl-detail-notes"><h3>Diario</h3>${notes.map(note => `<p>${esc(note.text)}</p>`).join('')}</section>` : ''}
     ${canChange || canReopen ? `<details class="pl-detail-options"><summary>Gestionar actividad</summary><div class="actions">
       ${canChange ? `${button('edit','Editar',item.id)}${button('move','Mover a otro día',item.id)}${button('duplicate','Duplicar',item.id)}${button('skip','Omitir',item.id)}${button('archive','Archivar',item.id)}${button('delete','Eliminar y guardar en papelera',item.id,'pl-danger')}` : button('mark-pending','Marcar pendiente',item.id)}
@@ -386,6 +393,7 @@ function bindPlanner(element: HTMLElement, app: AppContext, selectedMode?: Plann
       <div class="pl-section-head pl-plan-head"><div><h2>${dayLabel(date)}</h2><span class="pl-kicker">${items.length} ${items.length === 1 ? 'actividad' : 'actividades'}</span></div><div class="pl-plan-switch">${planButton('A',selectedPlan)}${planButton('B',selectedPlan)}${selectedPlan !== activatedPlan ? button('activate-plan',`Activar Plan ${selectedPlan}`,'','pl-activate') : '<span class="pl-active-label">Activo</span>'}</div></div>
       ${warningHTML}${isReordering ? '<p class="pl-order-help">Arrastra el asa o usa las flechas arriba y abajo con el asa enfocada.</p>' : ''}
       ${mode === 'week' ? daysHTML : `<div class="pl-timeline">${activityDay(app,date,mode,places,selectedPlan,isReordering)}</div>`}
+      ${selectedPlan === 'A' && mode !== 'week' ? walkDetails(date) : ''}
       <details class="pl-secondary"><summary>Más herramientas para organizar el día</summary><div class="pl-secondary-content"><div class="pl-secondary-actions">${button('save-version',savedSnapshot ? 'Guardar nueva versión' : 'Guardar versión del día')}${savedSnapshot ? button('restore-version','Recuperar versión guardada') : ''}${modeButton('week',mode,'Semana')}${modeButton('timeline',mode,'Cronología')}${modeButton('zones',mode,'Por zonas')}</div>
       <div class="pl-day-banner"><p>${esc(dayPrefs.preferences.length ? `Preferencias: ${dayPrefs.preferences.map(value => preferences.find(entry => entry[0] === value)?.[1]).filter(Boolean).join(' · ')}` : 'Elige el ritmo de esta jornada si te ayuda a organizarla.')}</p><div class="pl-templates"><label class="pl-zone-choice"><span class="sr-only">Zona de la plantilla</span><select aria-label="Zona de la plantilla" data-pl-zone><option value="">Todas las zonas</option>${[...new Set(places.map(place => place.area).filter(Boolean))].sort().map(zone => `<option value="${esc(zone)}"${zone === selectedZone ? ' selected' : ''}>${esc(zone)}</option>`).join('')}</select></label><button type="button" class="pl-button" data-pl-action="template-half">＋ Media jornada</button><button type="button" class="pl-button" data-pl-action="template-full">＋ Jornada completa</button></div></div>
       <section class="pl-preferences"><h3>Preferencias del día</h3><div class="pl-preference-list">${preferencesFor(state,date)}</div></section>${ideaTray(app,places)}

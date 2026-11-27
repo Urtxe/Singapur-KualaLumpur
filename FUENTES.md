@@ -1,6 +1,15 @@
 # Fuentes de Asia Trip 2026
 
-Consulta editorial del 25 de noviembre de 2026. Las fichas distinguen la información vigente de los datos que deben confirmarse antes de la visita. Las coordenadas sirven para el esquema del mapa y las distancias directas.
+La revisión del 27 de noviembre de 2026 figura en las fichas de la app con enlace a las fuentes de apertura, accesos, precios y programas. Las referencias del 25 y 26 de noviembre de este documento recogen las consultas anteriores. Las horas son locales.
+
+## Revisión del 27 de noviembre de 2026
+
+- El horario de cada ficha describe sus zonas accesibles al público y la última entrada cuando consta. Las duraciones de visita incluyen el tiempo recomendado por el operador, cuando existe, y márgenes estimados para el grupo.
+- Christmas Wonderland abre 18:30–23:00. La última admisión es a las 22:15. Para el 5 dic, Garden Rhapsody y Blizzard Time duran 17 min y Borealis dura 15 min. El encuentro con Santa de ese día tiene siete sesiones de 45 min de 09:15 a 16:45 con pausas. [Programa de Christmas Wonderland](https://www.gardensbythebay.com.sg/en/frequently-asked-questions/faq-christmas-wonderland-2026.html) · [Pases de Santa](https://www.gardensbythebay.com.sg/en/things-to-do/calendar-of-events/santa-meet-and-greet.html).
+- Las torres Petronas publican 09:00–22:30 de martes a domingo y última admisión a las 21:30. En el plan del martes 8, la franja sugerida es 09:30 con presentación a las 09:15. La disponibilidad depende de la compra. [Entradas de Petronas](https://www.petronastwintowers.com.my/plan-your-visit/admission-ticketing/).
+- Los paseos de referencia de Planes y Transporte se trazaron con la red peatonal de OpenStreetMap. Las distancias se redondearon y los minutos de marcha son estimaciones. Los 1.700 m del enlace KLCC–Bukit Bintang corresponden al tramo que describe el Convention Centre. La salida exacta del alojamiento y los desvíos del maratón requieren confirmación. [Convention Centre](https://www.klccconventioncentre.com/visitors/getting-to-the-centre-and-car-parking) · [Desvíos de carrera](https://singaporeinternationalmarathon.com/trafficadvisory/).
+- Para llegar el 4 dic a Singapur, SG Arrival Card desde el 2 dic. Para llegar a Malasia el 7 dic, MDAC desde el 5 dic si corresponde. [ICA](https://www.ica.gov.sg/information-and-e-services/entry-and-departure/entering-singapore/sg-arrival-card-with-electronic-health-declaration) · [Portal MDAC](https://imigresen-online.imi.gov.my/mdac/register).
+- El vuelo SIN–KUL, las terminales que faltan, la torre y lobby de Star Residence, la piscina y el vehículo para cinco requieren los billetes, la reserva o la confirmación del proveedor.
 
 ## Fuentes principales
 
@@ -15,10 +24,10 @@ Consulta editorial del 25 de noviembre de 2026. Las fichas distinguen la informa
 - Consultado el 25 nov 2026. Verificar compatibilidad de tarjetas emitidas en España, cargos bancarios y requisitos de tarjeta por viajero antes de usar. Changi Airport confirma que la ruta Downtown Line llega a Expo y conecta allí con el MRT del aeropuerto. [SimplyGo – tarjetas sin contacto](https://simplygo.com.sg/faqs/cards-and-charms/simplygo/contactless-bank-cards/).
 - Consultado el 25 nov 2026. Changi Airport confirma Changi Airport MRT (CG2) hasta Expo (CG1/DT35) y transbordo a Downtown Line hacia la ciudad. El tiempo total hasta Rochor depende de esperas y transbordos. [Salir de Changi en MRT](https://www.changiairport.com/en/at-changi/transport-and-directions/leaving-the-airport.html).
 - Consultado el 25 nov 2026. Changi Airport confirma Downtown Line hasta Expo MRT y transbordo al tren del aeropuerto. Publica tarifas administrativas para tarjetas bancarias extranjeras. [Transporte MRT hacia Changi](https://www.changiairport.com/en/at-changi/transport-and-directions/getting-to-changi-airport.html).
-- Consultado el 25 nov 2026. La página devolvió error al consultar. Entradas, horarios, precio y disponibilidad pendientes de verificación. [PETRONAS Twin Towers: tickets](https://www.petronastwintowers.com.my/plan-your-visit/admission-ticketing/).
+- Consultado el 27 nov 2026. Publica horarios, franjas de entrada y tarifas según edad y día. [PETRONAS Twin Towers](https://www.petronastwintowers.com.my/plan-your-visit/admission-ticketing/).
 - Consultado el 25 nov 2026. Indica luz y sonido a 20:00, 20:30, 21:00, 21:30–22:00 y 22:00–22:10; luz sola a 19:30, 20:30 y 21:30. Confirmar cerca de la fecha. [Lake Symphony – Suria KLCC](https://www.suriaklcc.com.my/attractions/esplanade-lake-symphony/).
 - Consultado el 25 nov 2026. Publica frecuencia cada 20 min, 28 min de KL Sentral a T1, 3 min adicionales a T2 y tarifas vigentes en la página. Revalidar antes de viajar. [KLIA Ekspres](https://www.kliaekspres.com/products-fares/klia-ekspres/).
-- Pendiente de consulta oficial de horarios, entradas y tarifas para diciembre de 2026. [Aquaria KLCC](https://aquariaklcc.com/).
+- Consultado el 27 nov 2026. Horario general 10:00–20:00, última admisión a las 19:00. [Aquaria KLCC](https://aquariaklcc.com/).
 - Consultado el 25 nov 2026. La SCDF indica llamar al 995 solo para emergencias médicas y de bomberos urgentes. [Emergency Medical Services – SCDF Singapore](https://www.scdf.gov.sg/home/about-scdf/emergency-medical-services).
 - Consultado el 25 nov 2026. La Policía de Singapur publica 999 para asistencia policial inmediata. [Singapore Police Force: emergencias](https://www.police.gov.sg/Contact-Us).
 - Consultado el 25 nov 2026. La Policía Real de Malasia publica 999 como teléfono policial de emergencia. [Royal Malaysia Police: FAQ](https://www.rmp.gov.my/faq?lang=en).
@@ -56,7 +65,7 @@ Consulta editorial del 25 de noviembre de 2026. Las fichas distinguen la informa
 - **Maxwell Food Centre** · 25 nov 2026. Horario de cada puesto puede diferir.. Fuente pendiente.
 - **Clarke Quay y Singapore River** · 25 nov 2026. Estimación de visita, sin ruta en vivo.. Fuente pendiente.
 - **Lau Pa Sat** · 25 nov 2026. Disponibilidad de puestos puede variar.. Fuente pendiente.
-- **Torres Petronas y KLCC** · 25 nov 2026. Página oficial de tickets dio error; datos de entrada pendientes.. [Referencia](https://www.petronastwintowers.com.my/plan-your-visit/admission-ticketing/).
+- **Torres Petronas y KLCC** · 27 nov 2026. Entrada en Lower Ground (Concourse). Presentación 15 min antes de la franja reservada. [Entradas](https://www.petronastwintowers.com.my/plan-your-visit/admission-ticketing/) · [Acceso](https://www.petronastwintowers.com.my/plan-your-visit/getting-here/).
 - **KLCC Park y Lake Symphony** · 25 nov 2026. Suria KLCC publica horas de fuentes, revalidar cerca de la fecha.. [Referencia](https://www.suriaklcc.com.my/attractions/esplanade-lake-symphony/).
 - **Pavilion Kuala Lumpur** · 25 nov 2026. Horario de diciembre no comprobado.. Fuente pendiente.
 - **Jalan Alor** · 25 nov 2026. Horarios de puestos y restaurantes varían.. Fuente pendiente.

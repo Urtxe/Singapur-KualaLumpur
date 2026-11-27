@@ -1,6 +1,8 @@
 import { days } from './data'
 import { connections, dishes, localEvents, placeGuides, safety } from './guide-data'
-import { eventProgramme, eventSources } from './event-markup'
+import { eventProgramme, eventSources, eventTiming } from './event-markup'
+import { foodStops } from './food-stops'
+import { eventOccursOn, hoursStatus, reviewedOn, visits, visitSources } from './travel-guide'
 import type { Place, State } from './types'
 import { allPlaces, button, city, cityHotel, dayOptions, directDistance, e, getPlace, icon, option, sourceLink, title } from './ui'
 
@@ -26,24 +28,37 @@ export function facts(entries: [string, string][]) {
 
 const options = (values: string[], active: string, first: string) => option('all',first,active) + values.map(value => option(value,value,active)).join('')
 
+export function visitFacts(place: Place) {
+  const visit = visits.get(place.id)
+  const guide = placeGuides[place.id]
+  const entries: [string, string][] = [
+    [visit ? hoursStatus[visit.hoursStatus] : 'Horario por confirmar', visit?.hours ?? 'Comprueba la apertura del lugar directamente.'],
+  ]
+  if (visit?.lastEntry) entries.push(['Último acceso', visit.lastEntry])
+  if (visit?.highlights) entries.push(['Qué ver', visit.highlights])
+  if (visit) entries.push(['Tiempo de visita', visit.duration])
+  if (visit?.practical) entries.push(['Información práctica', visit.practical])
+  if (visit?.price) entries.push(['Precio de la visita', visit.price])
+  else if (guide) entries.push(['Precio adulto', guide.adult || place.price], ['Precio infantil', guide.child])
+  return `${facts(entries)}<div class="actions">${visitSources(visit, place.source)}</div>${visit ? `<p class="fineprint">Consultado el ${reviewedOn} · hora local. La duración de visita es orientativa salvo que se indique otra cosa.</p>` : ''}`
+}
+
 export function placeResearch(place: Place, state: State) {
   const guide = placeGuides[place.id]
   const hotel = getPlace(state, cityHotel(place.city))
   const distance = hotel && directDistance(place, hotel)
-  return facts([
-    ['Qué fotografiar', place.photo], ['Horario', guide?.hours ?? 'Consulta el horario antes de ir'], ['Duración recomendada', guide?.duration ?? 'Pendiente'],
-    ['Precio adulto', guide?.adult ?? place.price], ['Precio infantil', guide?.child ?? 'Pendiente'], ['Reserva', guide?.booking ?? 'Consulta la fuente oficial'],
+  return visitFacts(place) + facts([
+    ['Qué fotografiar', place.photo], ['Reserva', guide?.booking ?? 'Consulta la fuente oficial'],
     ['Accesibilidad', place.access], ['Para las niñas', guide?.children ?? 'Organizar la visita con pausas'], ['Adulto mayor', guide?.senior ?? place.access],
     ['Calor y lluvia', guide?.weather ?? place.shade], ['Mejor momento', guide?.bestTime ?? 'Pendiente'],
-    ['Distancia directa desde el hotel', distance != null ? `${distance.toLocaleString('es-ES',{maximumFractionDigits:1})} km · línea recta` : 'Sin coordenadas completas'],
+    ['Distancia directa desde el hotel', distance != null ? `≈${Math.round(distance * 1_000 / 10) * 10} m · línea recta` : 'Sin coordenadas completas'],
     ['Transporte', guide?.transport ?? 'Consulta el apartado Transporte o abre las indicaciones'], ['Dirección', place.address],
-    ['Verificación', guide?.verified ?? (place.source ? 'Ver referencias en Viaje' : 'Pendiente')],
   ])
 }
 
 export function eventsView() {
   const matches = localEvents.filter(item => (eventFilters.city === 'all' || item.city === eventFilters.city) &&
-    (!eventFilters.date || item.start <= eventFilters.date && item.end >= eventFilters.date) &&
+    (!eventFilters.date || eventOccursOn(item, eventFilters.date)) &&
     (eventFilters.category === 'all' || eventFilters.category === item.category) && (eventFilters.price === 'all' || eventFilters.price === item.price))
   const cityOptions = option('all','Ambas ciudades',eventFilters.city) + option('sg','Singapur',eventFilters.city) + option('kl','Kuala Lumpur',eventFilters.city)
   const filters = `<div class="control-grid">
@@ -57,7 +72,7 @@ export function eventsView() {
     <div class="reference-grid">${matches.map(item => `<article class="card guide-card">
       <div class="tags"><span class="tag ${item.status === 'confirmed' ? 'ok' : item.status === 'mobility' ? 'warm' : ''}">${eventStatus[item.status]}</span><span class="tag">${eventPrice[item.price]}</span></div>
       <h2>${e(item.name)}</h2><p class="locality">${icon('eventos')} ${city[item.city]} · ${e(item.category)}${item.time ? ` · ${e(item.time)}` : ''}</p>
-      <p>${e(item.detail)}</p>${eventProgramme(item)}<p class="fineprint">Comprobación ${e(item.verified)}</p>
+      <p>${e(item.detail)}</p>${eventTiming(item)}${eventProgramme(item)}<p class="fineprint">Comprobación ${e(item.verified)}</p>
       <div class="actions">${button('Añadir al plan','event-add','plus','',item.id)}${eventSources(item)}</div>
     </article>`).join('') || '<p class="card empty">No hay resultados con estos filtros. Prueba otra fecha o ciudad.</p>'}</div>`
 }
@@ -66,8 +81,13 @@ export function eventSeed(id: string, chosen: string) {
   const item = localEvents.find(event => event.id === id)
   if (!item) return undefined
   const selected = eventFilters.date || chosen
-  const date = selected >= item.start && selected <= item.end ? selected : days.find(day => day.date >= item.start && day.date <= item.end && day.city === item.city)?.date ?? selected
-  return { title: item.name, date, time: item.time && /^\d\d:\d\d$/.test(item.time) ? item.time : '', placeId: item.placeId ?? '', detail: item.detail, officialUrl: item.source, category: item.category }
+  const date = eventOccursOn(item, selected) ? selected : days.find(day => day.city === item.city && eventOccursOn(item, day.date))?.date ?? selected
+  return {
+    title: item.name, date, time: item.time && /^\d\d:\d\d$/.test(item.time) ? item.time : '', placeId: item.placeId ?? '',
+    ...(item.durationMinutes === undefined ? {} : { duration: item.durationMinutes }),
+    detail: item.detail, booking: `${item.hours}\nDuración: ${item.duration}`,
+    officialUrl: item.source, category: item.category,
+  }
 }
 
 export function foodResults(state: State) {
@@ -91,6 +111,13 @@ export function gastronomy(state: State) {
     <div class="filter-bar food-filter"><label class="search-field">${icon('search')}<span class="sr-only">Buscar platos</span><input type="search" data-action="dish-query" value="${e(foodFilters.query)}" placeholder="Buscar un plato"></label>
     <label class="sr-only" for="food-city">Ciudad</label><select id="food-city" data-action="dish-city">${option('sg','Singapur',foodFilters.city)}${option('kl','Kuala Lumpur',foodFilters.city)}</select>
     <label class="filter-check"><input type="checkbox" data-action="dish-only-tried"${foodFilters.tried ? ' checked' : ''}> Solo probados</label></div>
+    <details class="card food-stops"><summary>Paradas para comer en ${foodFilters.city === 'sg' ? 'Singapur' : 'Kuala Lumpur'}</summary>
+      <div class="reference-grid">${foodStops.filter(stop => stop.city === foodFilters.city).map(stop => `<section class="guide-card">
+        <h3>${e(stop.name)}</h3><p>${e(stop.address)}</p>
+        ${facts([['Horario', stop.hours], ['Qué pedir', stop.order], ['Precio', stop.price]])}
+        <div class="actions">${sourceLink(stop.source)}${sourceLink(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${stop.name} ${stop.address}`)}`,'Ver en Maps')}</div>
+      </section>`).join('')}</div><p class="fineprint">Horarios consultados el ${reviewedOn}.</p>
+    </details>
     <div id="food-results">${foodResults(state)}</div>`
 }
 
