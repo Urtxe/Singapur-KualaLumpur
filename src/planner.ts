@@ -93,7 +93,7 @@ function activityCard(item: Activity, places: Place[], reordering: boolean) {
   </article>`
 }
 
-function activityDetails(app: AppContext, item: Activity, onAction: (action: string, item: Activity, dialog: HTMLDialogElement) => void) {
+function activityDetails(app: AppContext, item: Activity, opener: HTMLElement, onAction: (action: string, item: Activity, dialog: HTMLDialogElement) => void) {
   const place = app.places().find(entry => entry.id === item.placeId)
   const event = eventForActivity(item)
   const status = item.status === 'done' ? 'Realizada' : item.status === 'skipped' ? 'Omitida' : 'Pendiente'
@@ -119,7 +119,7 @@ function activityDetails(app: AppContext, item: Activity, onAction: (action: str
     ${canChange || canReopen ? `<details class="pl-detail-options"><summary>Gestionar actividad</summary><div class="actions">
       ${canChange ? `${button('edit','Editar',item.id)}${button('move','Mover a otro día',item.id)}${button('duplicate','Duplicar',item.id)}${button('skip','Omitir',item.id)}${button('archive','Archivar',item.id)}${button('delete','Eliminar y guardar en papelera',item.id,'pl-danger')}` : button('mark-pending','Marcar pendiente',item.id)}
     </div></details>` : '<p class="pl-protected-note">Esta reserva o actividad está protegida.</p>'}
-  </div>`)
+  </div>`, opener)
   dialog.querySelector('.pl-activity-detail')?.addEventListener('click', event => {
     const action = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('button[data-pl-action]')?.dataset.plAction : undefined
     if (action) onAction(action, item, dialog)
@@ -452,7 +452,7 @@ function bindPlanner(element: HTMLElement, app: AppContext, selectedMode?: Plann
     else if (action === 'edit' && item) openActivity(app, item)
     else if (action === 'details' && item) {
       target.focus({ preventScroll: true })
-      activityDetails(app, item, detailAction)
+      activityDetails(app, item, target, detailAction)
     }
     else if (action === 'reorder-mode') {
       reordering = !reordering

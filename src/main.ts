@@ -328,8 +328,8 @@ function commit(next: State, message?: string, imported = false) {
   return true
 }
 
-function show(title: string, html: string) {
-  if (!modal.open) returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+function show(title: string, html: string, opener?: HTMLElement) {
+  if (!modal.open) returnFocus = opener ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
   modal.innerHTML = dialogContent(title, `<p class="modal-feedback storage-warning" role="status" hidden></p>${html}`)
   if (!modal.open) modal.showModal()
   else modal.querySelector<HTMLElement>('[data-action="close-dialog"]')?.focus({ preventScroll: true })
@@ -577,7 +577,13 @@ modal.addEventListener('close', () => {
   const opener = returnFocus
   returnFocus = null
   if (opener?.isConnected) opener.focus({ preventScroll: true })
-  else if (opener?.matches('.pl-open')) (content.querySelector<HTMLElement>(actionSelector(opener)) ?? content).focus({ preventScroll: true })
+  else if (opener?.matches('.pl-open')) {
+    // An activity update replaces its row while the dialog is still open.
+    // Let the browser finish closing the dialog before focusing the new row.
+    requestAnimationFrame(() => {
+      if (!modal.open && route() === 'agenda') (content.querySelector<HTMLElement>(actionSelector(opener)) ?? content).focus({ preventScroll: true })
+    })
+  }
   else if (opener?.matches('.pl-add, .pl-add-float')) {
     content.querySelector<HTMLElement>(`.${opener.matches('.pl-add-float') ? 'pl-add-float' : 'pl-add'}`)?.focus({ preventScroll: true })
   }

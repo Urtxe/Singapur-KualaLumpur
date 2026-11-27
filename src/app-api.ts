@@ -6,7 +6,7 @@ export interface AppContext {
   applyImported(next: State, message?: string): boolean;
   render(): void;
   notify(message: string): void;
-  openDialog(title: string, html: string): HTMLDialogElement;
+  openDialog(title: string, html: string, opener?: HTMLElement): HTMLDialogElement;
   navigate(route: string): void;
   directions(placeId: string, activityId?: string): void;
   places(): Place[];
